@@ -1,0 +1,77 @@
+
+// this is NOT the main logic file for this project, see cdlsim or verilator directories
+
+typedef struct
+{
+   bit[16] value;
+} regwidth;
+
+module lsa_core
+(
+    clock           lsa_clock,
+    input  bit      lsa_reset,
+
+    input  bit[16]  mem_data_in,
+
+    output bit      mem_chip_select,
+    output bit      mem_output_enable,
+    output bit      mem_write_enable,
+    output bit[16]  mem_address,
+    output bit[16]  mem_data_out
+
+)
+{
+    default clock   lsa_clock ;
+    default reset   active_high lsa_reset ;
+
+    clocked regwidth[16] reg = {{value=0x00}};
+
+
+
+    clocked bit[16] inst = 0x0000;
+
+    clocked bit[2]  xstate = 0;
+    comb    bit[2]  xstate_next;
+
+    the_code:
+    {
+        mem_chip_select = 0;
+        mem_output_enable = 0;
+        mem_write_enable = 0;
+        mem_address = 0;
+        mem_data_out = 0;
+
+        xstate_next = 3;
+        full_switch(xstate)
+        {
+            case 0:
+            {
+                mem_chip_select = 1;
+                mem_output_enable = 1;
+                mem_address = 0x0000;
+                xstate_next = 1;
+
+                inst <= mem_data_in;
+            }
+            case 1:
+            {
+                inst <= inst;
+                xstate_next = 2;
+            }
+            case 2:
+            {
+                mem_chip_select = 1;
+                mem_output_enable = 1;
+                mem_address = reg[0].value;
+                xstate_next = 1;
+                reg[0].value <= reg[0].value+2;
+                inst <= mem_data_in;
+            }
+            default:
+            {
+                xstate_next = 3;
+            }
+        }
+        xstate <= xstate_next;
+    }
+}

@@ -1,0 +1,3144 @@
+
+Intro
+
+The lsa processor project was created for a number of different reasons.
+Teaching assembly language is but one of them.  The architecture was
+designed to balance real world usability and understandable simplicity.
+
+At the moment and probably forever, this document is a work in progress.
+Any feedback you choose to offer will be read and appreciated, doesnt
+mean that everything suggested or offered will get included.  Feedback
+helps to understand what the reader needs to see or not see to make
+the learning process successful.  Since we do not all learn things the
+same way the presentation has to be averaged in some form.
+
+
+What asm is
+
+Assembly Language (asm) is a programming language like C or C++ or
+Java or Python.  You create text files that follow syntax rules and
+a tool is used to parse that file.  The primary difference from other
+languages like C, Python, etc is that the term Assembly Language is
+generic, but the language itself is not.  Each different processor type
+or family has a different assembly language.  Although the functions
+that assembly language instructions perform may be similar from one
+architecture to another, there should be no expectation that one syntax
+will resemble another.  Think about a door on a business or office building
+it performs the same function, but think about how many different sizes
+and shapes and types of doors there, are.  Revolving, sliding, hinged, etc.
+
+Processors operate on bits and bytes known as machine code.  Although
+certaily possible to program in machine code, you would not want to
+for any significant programming problem.  Assembly Language is a human
+readable (and writable) form of machine code.  There is often a one to
+one relationship between an assembly language instruction and a machine
+instruction that the processor operates on.  The bits and bytes in the
+instruction are assembled based on information in the assembly language
+instruction.
+
+Assembly language programming involves more than just the assembly
+language instructions.  The program used to read and process an
+assembly language program, for lack of a better term, assembler, will
+have other information it needs to do its job.  Unlike programming
+languages like C, assembly language normally does not have an
+organization or standards body that carefully defines the rules of
+the language.  Normally the company that invented the processor creates
+the initial assembly language, along with the machine code instructions
+of course.  Normally this original assembly language is honored, but
+syntax used by the assembler tool to support the programmer but that
+does not translate into instructions (like a #define or #pragma in C
+for example) is often invented by the company creating the assembler tool.
+But this is not a hard and fast rule, sometimes the folks creating
+the assembler tool modify or create their own assembly language that
+translates to the same machine code instructions.
+
+The assembly language concept is so ungoverned that, the terms used here
+assembly language, machine language, assembler.  Those three terms can
+and have all be used to describe the programming language, the text
+you type in a file.  So it is hard to have any kind of discussion about
+the difference between the bits and bytes the processor runs on, the
+ASCII syntax you type in the file, and the program you run that reads
+that syntax and turns it into bits and bytes.
+
+The good news though, is once you learn asm for one processor, asm for
+another is much easier to pick up.  If you choose to continue to learn
+asm for other processors (which I highly recommend) each one gets that
+much easier.  Both assembly languages and other programming languages
+become easier to learn once you understand how the processor really
+operates, and are able to break programming problems down into very
+small sequences of steps.
+
+
+What asm is not
+
+Assembly language only gets you closer to processor core, it will not
+teach you how to program peripherals like video cards and usb controllers.
+Often it does not involve on chip peripherals like gpio and uarts and
+timers.  Peripherals are normally programmed using languages like C,
+if you are learning asm to try to understand the peripherals you are
+in the wrong place.
+
+
+What to expect.
+
+This is an attempt to teach by doing.  Each lesson should be completed in
+order as most lessons build upon the foundation built by the lessons
+before them.  Resist the urge to cut and paste, it will be in your best
+interest to type these programs in manually and debug typos you might
+make along the way.  More than other languages assembly carries with it
+serious crashes and chaos and debugging your way through those with
+the tools is more important than the language itself.  The good news is
+that you wont be melting down and letting smoke out of a simulated processor
+if you make mistakes.  On real hardware that can happen.
+
+There is an expectation here that you already have programming experience
+in some higher level language.  Ideally you have had some C programming
+exposure as the lessons may use C to show the counterpart to the
+assembly language.  Likewise the lessons are not going to teach you
+how to use a text editor and a command line, you programming experience
+should already have provided that knowledge.
+
+The lsa instruction set is defined in the file lsa-isa.txt.  These
+lessons will walk you through understanding how to use the instructions,
+from there you can use your programming experience to organize these
+instructions to write programs that interest you or perform a certain
+task.
+
+The lsa instruction set was invented specifically for educational
+purposes like this.  It has many goals, teaching assembly language is
+but one of them.  An assembler lsa-as.c has been provided as well
+as an instruction set simulator (software that simulates the parsing
+and execution of binary machine code).  Other things not related to
+assembly language are also provided but not discussed here.
+
+
+---------------------------------------------------------------------
+Lesson 1:  Building tools and first simulation
+
+These lessons require the use of the lsa assembler and instruction set
+simulator.  These are simple C programs that need to be compiled.
+
+From a command line/prompt
+
+Run the command gcc
+
+> gcc
+gcc: no input files
+
+Your output may vary, if you get some sort of file not found error then
+you need to install gcc or some other C compiler.  For example clang
+or cl or llvm-gcc, etc.  Installing the C compiler to build the tools
+is beyond the scope of this lesson.
+
+In case it helps though, if on windows look for the mingw32 project
+(and use gcc to compile), or look for llvm (and use clang or llvm-gcc
+to compile).  If running ubuntu linux then
+
+> sudo apt-get install build-essential
+
+This will give you a C compiler (gcc) among other things.
+
+Once you have a C compiler:
+
+> gcc lsa-as.c -o lsa-as
+> gcc lsa-sim.c -o lsa-sim
+
+If you are running on windows instead of -o lsa-as use -o lsa-as.exe and
+lsa-sim.exe.  If using llvm then use llvm-gcc or clang instead of gcc.
+If using Microsoft C then us cl instead of gcc, etc.
+
+Use a text editor and type this program (the stuff between the ---- lines
+but not including the ---- lines) in and save it as lesson01.s.
+
+---- lesson01.s ----
+    b reset
+    b reset
+reset:
+    halt
+---- lesson01.s ----
+
+Now assemble the program
+
+> ./lsa-as lesson01.s
+
+(if running windows use ./lsa-as.exe)
+
+The lsa-as program will spit out some information which down the road
+may or may not be useful.  It is all documented in the lsa-as.c source
+code <grin>.
+
+mem[0000]=0x8300C000
+mem[0001]=0x8300C000
+mem[0002]=0x8300C000
+mem[0003]=0x8300C000
+mem[0004]=0x8000FFFF
+lab:
+<1> [3][0000][reset]
+<2> [3][0001][reset]
+<3> [3][0002][reset]
+<4> [3][0003][reset]
+<5> [0][0004][reset]
+mem[0000]=0x8300C003
+mem[0001]=0x8300C002
+mem[0002]=0x8300C001
+mem[0003]=0x8300C000
+mem[0004]=0x8000FFFF
+
+lsa-as takes lesson01.s and creates the file lesson01.s.csv (simply tacks
+a .csv on the end of whatever file name you feed it).  And as the name
+implies this is a csv file.  Most assemblers do not output this
+format of a file, usually you get some sort of object file or some
+flavor of binary file.  The termin binary is a bit of a misnomer as
+some binary files are ASCII like intel hex and srec.  Others do contain
+binary portions of executable instructions, wrapped by file related
+stuff (elf, coff, exe, etc).  And some binary files are nothing but
+the bits and bytes you put in a memory of some sort and the processor
+executes.
+
+Now we are ready to run the simulator
+
+> ./lsa-sim lesson01.s.csv
+
+When the simulation hits the halt instruction it stops and prints
+out some statistics:
+
+fetch_count 2
+read_count 0
+write_count 0
+
+The lessons from here on out will assume you know how to run lsa-as
+and lsa-sim commands.  If/when you change the .s file do not forget to
+assemble it before running the simulator.
+
+So what did this program do?
+
+All processors have some sort of entry point they use to boot up, a way
+or place to figure out where in memory the program starts and a way to
+start executing.  Most use some sort of vector table, which can go by
+many names, an interrupt vector table, an exception vector table, etc.
+For most processors, that table contains a list of addresses, the
+location in the table determines what code can be found at that address.
+Usually at a minimum you will have a reset vector, which is the code
+that is run as soon as the processor comes out of reset (the boot up
+code), and the other common one is an interrupt vector, code that is
+run when a interrupt occurs.  Some processors have a vector for each
+different interrupt line or entries for undefined instructions or data
+aborts, etc.
+
+The lsa processor like one or a few others has executable instructions
+in the vector table instead of addresses.  For the lsa processor you will
+want to use an unconditional branch instruction.  Simply the letter b
+and and address which can be a label.  Address 0x0000 in the lsa processor's
+memory space is the reset entry point, that instruction will get executed
+after reset.  Address 0x0001 (memory in the lsa processor is in units
+of 16 bit words, not the typical 8 bit bytes) is the interrupt entry
+point.  The first instruction in the .s file is at address 0x0000 the
+second at 0x0001 and so on.
+
+Using a name then colon on an line creates a label, very much like you
+would see in C.  And the b, branch, instruction, is very much like
+a goto in C.  The branch instruction will be discussed in a future
+lesson.
+
+Most processors do not have a halt instruction.  The ones that do often
+use that instruction to put the processor in a low power sleep state.
+This processor has one for educational purposes only.  When the
+simulator hits that instruction it stops.  Otherwise the simulator
+will execute forever (normally a ctrl-c will get you out of it if
+you happen to make a programming mistake that leads to an infinite
+loop).  Normally processors are always running, always executing
+something if your software has nothing better to do then it will often
+sit in a tight while loop waiting for something to do, but rarely do
+they actually stop executing.
+
+---------------------------------------------------------------------
+Lesson 2: Registers and Immediates
+
+---- lesson02 ----
+    b lesson02
+    b lesson02
+lesson02:
+    llz r5,#0x34
+    lhz r7,#0xFF
+    stw [r7],r5
+    halt
+---- lesson02 ----
+
+When you simulate this the output will contain:
+
+show: 0x0034
+
+What does this program do?
+
+The lsa processor has a number of general purpose registers.  General
+purpose register is sometimes abbreviated gpr.  The first few gprs
+(r0,r1,r2) are not completely general purpose as they have special
+purposes too, for now let's avoid them.  r5 and r7 are definitely
+general purpose though.  Registers are like general purpose local
+variables in a program.  Unlike a high level language though you have
+a finite number of these registers and you must re-use them (if your
+program needs more than a handful of variables).
+
+Being a load/store architecture processor, most of the instrutions use
+only registers for operands.  If you want to add 7 to something you have
+to put a 7 in a regsiter and then perform the add using only registers.
+There is no flavor of add that accepts immediates (constants) as an
+operand.  The load immediate instructions are there specifically to
+load constants into registers.
+
+The llz instruction stands for load immediate lower half and zero other
+half.  Because the lsa instructions are a fixed length of 16 bits you
+are limited as to how big an immediate can be.  The immediate portion
+of the instruction is 8 bits, and there are four flavors of load
+immediate instructions.
+
+ll  rd,#imm     load immediate lower half
+lh  rd,#imm     load immediate upper half
+llz rd,#imm     load immediate lower half and zero other half
+lhz rd,#imm     load immediate upper half and zero other half
+
+rd stands for destination register, #imm is the immediate value or
+constant value.  The lsa assembly language always has the destination
+as the first item.  As you read and write these instructions visualize
+an equals sign instead of the first comma.  rd = imm.
+
+The load immediate instructions modify 8 bits of a register by placing
+those 8 bits in the half of the register specified.  The zero other
+half option gives you control over all 16 bits in the register, when
+used it zeros out the other half, the half that you did not place the
+8 bits in.  The non-zero load immediate instructions will not modify
+or otherwise touch the bits not specified.  An ll r5,#0x34 will put
+0x34 in the lower bits of r5 and leave the upper 8 bits untouched.
+llz r5,#0x34 will put 0x34 in the lower 8 bits of r5 and 0x00 in the
+upper 8 bits.
+
+So knowing all of this the program sets r5 to 0x0034 and r7 to 0xFF00.
+
+stw is the store word instruction, a word in the lsa instruction set
+is defined as 16 bits.  Store word means store or write a word to memory.
+There are a number of stw options which this lesson will not get into,
+the basic boring stw is used here.  We use brackets around the register
+to give us a visual reminder that this has a level of indirection.  In
+this case the 0xFF00 in r7 is an address in memory.  The second operand
+in an stw holds the data to be written to that memory location.  The stw
+instruction we are using here is defined in the form:
+
+stw [rd],rs
+
+Rd again means destination register, related to where the data is going,
+rs is the source related to where the data comes from.
+
+When this instruction is executed as written above, the value 0x0034
+will be written to memory at address 0xFF00.  In C think of r7 as being
+a pointer and r5 being a variable:
+
+unsigned short r5,*r7;
+
+r5=0x0034;
+r7=(unsigned short *)0xFF00;
+*r7=r5;
+
+As you may know from other programming languages not all memory
+addresses are simply memory.  Some are memory mapped I/O like video
+cards, keyboard controllers, etc.  Lsa-sim has a few peripherals for
+lack of a better term.  0xFF00 is for educational purposes when using
+the simulator.  What we write to that address gets printed out with the
+word show.  Like the halt instruction this is not something you see in
+the real world, normally you would compute ASCII characters and send
+them to a serial port (lsa-sim has a memory mapped I/O address for that
+as well).
+
+---------------------------------------------------------------------
+Lesson 3: Simple loads and stores
+
+---- lesson03 ----
+    b lesson03
+    b lesson03
+lesson03:
+    llz r5,#0x34
+    lhz r7,#0xFF
+    stw [r7],r5
+    lhz r8,#0x01
+    lhz r9,#0x00
+    stw [r8],r5
+    ldw r9,[r8]
+    stw [r7],r9
+    halt
+---- lesson03 ----
+
+You should see:
+
+show: 0x0034
+show: 0x0034
+
+What does this program do?
+
+r8 gets the value 0x0100.  Most of the memory implemented in the lsa-sim
+simulator is available for generic read/write use.  You should always
+be careful with your memory management, vector table, program space,
+stack space (explained later), and the stuff left over (heap).  This
+program is very small and wont get anywhere near address 0x100, so that
+is a safe address to use (for this example).
+
+r9 is zeroed for demonstration purposes, r5 is stored in memory at 0x0100
+r9 is read from memory using the ldw (load word) at address 0x0100 and
+then written to 0xFF00 so we can see its value.
+
+This is the C equivalent:
+
+unsigned short r5,*r7,*r8,r9;
+
+r5=0x0034;
+r7=(unsigned short *)0xFF00;
+*r7=r5; /* show 0x0034 */
+r8=0x0100;
+r9=0x0000;
+*r8=r5;
+r9=*r8;
+*r7=r9; /* show 0x0034 */
+
+Load word (ldw) is the opposite of store word (stw).  Load word reads
+a word from memory.  Because we are reading from memory to a register
+the destination register is on the left of the comma and the source,
+the address, the register in brackets, is on the right of the comma.
+
+---------------------------------------------------------------------
+Lesson 4: Load/Store post increment
+
+---- lesson04 ----
+    b lesson04
+    b lesson04
+lesson04:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lhz r8,#0x01
+
+    llz r9,#0x11
+    stw [r8++],r9
+
+    llz r9,#0x22
+    stw [r8++],r9
+
+    llz r9,#0x33
+    stw [r8++],r9
+
+    llz r9,#0x44
+    stw [r8++],r9
+
+    lhz r8,#0x01
+
+    ll  r8,#0x00
+    ldw r9,[r8]
+    stw [r7],r9
+
+    ll  r8,#0x01
+    ldw r9,[r8]
+    stw [r7],r9
+
+    lhz r8,#0x01
+
+    ldw r9,[r8++]
+    stw [r7],r9
+
+    ldw r9,[r8++]
+    stw [r7],r9
+
+    ldw r9,[r8++]
+    stw [r7],r9
+
+    ldw r9,[r8++]
+    stw [r7],r9
+
+    halt
+---- lesson04 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0011
+show: 0x0022
+show: 0x0011
+show: 0x0022
+show: 0x0033
+show: 0x0044
+
+What does this program do?
+
+When you use a ++ after the address register in a stw or ldw, the
+address in the register is used for the store or load, then the register
+is incremented.  In this case we start with r8 = 0x0100.  The first stw
+stores 0x0011 to 0x0100 then changes r8 to 0x0101.  The second stw
+stores 0x0022 to 0x0101 then changes r8 to 0x0102, and so on.
+
+    lhz r8,#0x01   ; r8 = 0x0100
+
+    llz r9,#0x11   ; r9 = 0x0011
+    stw [r8++],r9  ; ram[0x0100] = 0x0011 then r8 = 0x0100+1 = 0x0101
+
+    llz r9,#0x22   ; r9 = 0x0022
+    stw [r8++],r9  ; ram[0x0101] = 0x0022 then r8 = 0x0101+1 = 0x0102
+
+The program then goes to verify the memory two ways, one is to manually
+set r8 to 0x0100 and then 0x0101 and read memory at those addresses, then
+using a post increment with the ldw instruction the four locations that
+had been written are read back and shown.
+
+The C equivalent would be:
+
+unsigned short r5,*r7,*r8,r9;
+
+r5 = 0x1234;
+*r7 = 0xFF00;
+*r7 = r5; /* show 0x1234 */
+*r8 = 0x0100
+r9 = 0x0011;
+*r8++ = r9;
+r9 = 0x0022;
+*r8++ = r9;
+r9 = 0x0033;
+*r8++ = r9;
+r9 = 0x0044;
+*r8++ = r9;
+*r8 = 0x0100
+r9 = *r8;
+*r7 = r9 /* show 0x0011 */
+*r8 = 0x0101
+r9 = *r8;
+*r7 = r9 /* show 0x0022 */
+*r8 = 0x0100
+r9 = *r8++;
+*r7 = r9 /* show 0x0011 */
+r9 = *r8++;
+*r7 = r9 /* show 0x0022 */
+r9 = *r8++;
+*r7 = r9 /* show 0x0033 */
+r9 = *r8++;
+*r7 = r9 /* show 0x0044 */
+
+---------------------------------------------------------------------
+Lesson 5: Load/Store post decrement
+
+---- lesson05 ----
+    b lesson05
+    b lesson05
+lesson05:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lhz r8,#0x01
+
+    llz r9,#0x11
+    stw [r8--],r9
+
+    llz r9,#0x22
+    stw [r8--],r9
+
+    llz r9,#0x33
+    stw [r8--],r9
+
+    lhz r8,#0x01
+    ll  r8,#0x00
+    ldw r9,[r8]
+    stw [r7],r9
+
+    llz r8,#0xFF
+    ldw r9,[r8]
+    stw [r7],r9
+
+    llz r8,#0xFE
+    ldw r9,[r8]
+    stw [r7],r9
+
+    lhz r8,#0x01
+
+    ldw r9,[r8--]
+    stw [r7],r9
+
+    ldw r9,[r8--]
+    stw [r7],r9
+
+    ldw r9,[r8--]
+    stw [r7],r9
+
+    halt
+---- lesson05 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0011
+show: 0x0022
+show: 0x0033
+show: 0x0011
+show: 0x0022
+show: 0x0033
+
+What does this program do?
+
+Just like the post increment, the post decrement on the address register
+in an stw or ldw instruction, decrements the address register after it
+is used for the address for that instruction.
+
+    lhz r8,#0x01    ; r8 = 0x0100
+
+    llz r9,#0x11    ; r9 = 0x0011
+    stw [r8--],r9   ; ram[0x0100] = 0x0011, then r8 = r8 - 1 = 0x00FF
+
+    llz r9,#0x22    ; r9 = 0x0022
+    stw [r8--],r9   ; ram[0x0101] = 0x0022, then r8 = r8 + 1 = 0x00FE
+
+After writing a few locations, the program reads back those locations
+using manually set addresses and by using the post decrement with the
+ldw instruction.
+
+---------------------------------------------------------------------
+Lesson 7: Load/Store pre increment and pre decrement
+
+---- lesson06 ----
+    b lesson06
+    b lesson06
+lesson06:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lhz r8,#0x01
+
+    llz r9,#0x11
+    stw [++r8],r9
+
+    llz r9,#0x22
+    stw [++r8],r9
+
+    llz r9,#0x33
+    stw [++r8],r9
+
+    stw [r7],r8
+
+    lhz r8,#0x01
+    ll  r8,#0x01
+    ldw r9,[r8]
+    stw [r7],r9
+
+    ll  r8,#0x02
+    ldw r9,[r8]
+    stw [r7],r9
+
+    ll  r8,#0x03
+    ldw r9,[r8]
+    stw [r7],r9
+
+    lhz r8,#0x01
+    ll  r8,#0x04
+
+    ldw r9,[--r8]
+    stw [r7],r9
+
+    ldw r9,[--r8]
+    stw [r7],r9
+
+    ldw r9,[--r8]
+    stw [r7],r9
+
+    stw [r7],r8
+
+    halt
+---- lesson06 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0103
+show: 0x0011
+show: 0x0022
+show: 0x0033
+show: 0x0033
+show: 0x0022
+show: 0x0011
+show: 0x0101
+
+What does this program do?
+
+As you can guess, using a ++ before the address register in an stw or
+ldw instruction, causes the address to increment before it is used by
+that instruction.  Likewise using a -- before the address register
+in an stw or ldw instruction causes the address to decrement before
+it is used.
+
+---------------------------------------------------------------------
+Lesson 7: Load/Store PC Relative
+
+---- lesson07 ----
+    b lesson07
+    b lesson07
+lesson07:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lpc r9,jack
+    stw [r7],r9
+
+    llz r9,#0x77
+    spc jack,r9
+
+    llz r9,#0x88
+    spc jill,r9
+
+    lpc r9,jack
+    stw [r7],r9
+
+    stw [r7],r0
+
+    lpc r9,#0x03
+    stw [r7],r9
+    halt
+
+jack:   .word 0xABCD
+jill:   .word 0
+---- lesson07 ----
+
+You should see:
+
+show: 0x1234
+show: 0xABCD
+show: 0x0077
+show: 0x000F
+show: 0x0088
+
+What does this program do?
+
+Early on it was mentioned that not all of the general purpose registers
+were really general purpose.  Register r0 in the lsa processor is also
+known as the program counter or pc.  It is used by the processor to
+hold the address in memory where the instructions are being fetched.
+If you think about it in terms of the steps the processor has to do
+it needs to fetch, or read, from memory the instruction to be executed.
+At some point it will need to increment r0 to fetch the next instruction
+so might as well do it now (there are other reasons for incrementing now).
+Then it decodes the instruction, figuring out what the instruction does,
+then the last thing is it executes the instruction.   If you use r0
+directly in an instruction as we do in stw [r7],r0, which is in memory
+at 0x000E
+
+    MEM,0x000E,0x4708,END,,
+
+the output shows that r0 contains the current instruction address + 1.
+
+    show: 0x000F
+
+There are a couple of instructions where we can use the program counter
+to help us load and store variables for our program.  In this case
+the variables are named jack and jill.  The lsa-as syntax for defining
+these is to have a label, then .word to indicate that this memory
+location is being defined as static data and the value to initialize
+that memory location.
+
+    jack:   .word 0xABCD
+
+As with instructions, the assembler determines, by its location in the
+program, the address for the variable.  For this program the address for
+jack is 0x0012 and for jill 0x0013.
+
+    <27> [0][0012][jack]
+    <28> [0][0013][jill]
+
+    MEM,0x0012,0xABCD,END,,
+    MEM,0x0013,0x0000,END,,
+
+The first time we try to load jack
+
+    lpc r9,jack
+
+Is on line 9 which will be an instruction at address 0x0006
+
+    <9> [1][0006][jack]
+
+Once encoded that instruction is
+
+    MEM,0x0006,0x090B,END,,
+
+What the lpc instruction does is take the program counter at the
+time we execute, which is the address of the current instruction plus 1,
+add to that a constant encoded in the instruction and use that sum as
+the address to read from memory.  The immediate bits we add from the
+instruction are the lower 8 bits in the instruction, in this case 0x0B.
+
+So for this instruction, 0x090B, at address 0x0006, that means the
+memory location to be read is 0x0006 + 1 + 0x0B = 0x0012.  And what
+do you know?  That turns out to be the address of jack.  Which is what
+we told the assembler to do.
+
+spc is the same as lpc except it is a store, and as usual the
+destination is before the first/only comma and the source is after the
+comma.  So
+
+    spc jill,r9
+
+tells the assembler that we want to write r9 to the address that is
+defined with the jill label.
+
+When label names are used the assembler takes care of figuring out
+the address for you.  But, there is a rarely used form of these
+instructions that allows you to force the immediate that is used.
+
+[0x000F]:0x0903         lpc r9,#0x3
+[0x0010]:0x4798         stw [r7],r9
+[0x0011]:0xFFFF         halt
+[0x0012]:0xABCD     jack: .word #0xABCD
+[0x0013]:0x0000     jill: .word #0x0000
+
+It is difficult to use this form of the instruction properly because
+as soon as you add or remove instructions it probably messes up the
+address you were intending to use.
+
+To understand this though the lpc instruction with the immediate is at
+address 0x000F.  So 0x000F+1+0x03 is 0x0013, or the address for jill.
+
+Another way to look at it is, the pc+ comment on the side is relative
+to the lpc instruction for figuring out how to visualize looking ahead
+to know what immediate to use with the instruction.
+
+    lpc r9,#0x3
+    stw [r7],r9       ; pc+0
+    halt              ; pc+1
+jack: .word #0xABCD   ; pc+2
+jill: .word #0x0000   ; pc+3
+
+You will likely never use the lpc or spc instructions in this form,
+the reason for going through this lengthy explanation is two fold, first
+so that you understand that you can only reach 0xFF or 255 instructions
+ahead of the current instruction, and second that you can only access
+addresses greater than the current address.
+
+This second fact is not necessarily typical for processors, many
+or perhaps most use a (twos complement) signed immediate allowing
+you to reach forward or backward in memory, but only half as far.  This
+processor limits you to only forward addressing for the lpc and spc
+instructions.
+
+---------------------------------------------------------------------
+Lesson 8: Long reach and backward addressing
+
+---- lesson08 ----
+    b lesson08
+    b lesson08
+lesson08:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lpc r8,backward
+    ldw r9,[r8]
+    stw [r7],r8
+    stw [r7],r9
+    halt
+
+backward: .word =lesson08
+---- lesson08 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0002
+show: 0x8534
+
+What does this program do?
+
+This program demonstrates how to overcome the fact that lpc only allows
+forward addressing.  Using an equals sign (=) in front of a label name
+in a .word definition means to the assembler "the address of"
+
+    backward: .word =lesson08
+
+The value at the backward label will be the address of the label
+lesson08.  The assembler, lsa-as, takes care of filling in these
+numbers for you.
+
+    MEM,0x0002,0x8534,END,,
+    ...
+    MEM,0x000B,0x0002,END,,
+
+For this program lesson08 is at address 0x0002 and backward is at
+address 0x000B.  And you can see that the instruction at address 0x0002
+is 0x8534, which is one of the values shown when running the simulator.
+
+Not only does this demonstrate how to load or store memory locations
+defined using labels behind the program counter, but it also demonstrates
+unlimited reach.  The lpc instruction is limited to 255 instructions
+ahead, but the address defined at that location is a full 16 bit address
+and can be anywhere in the program.   So there will be times where you
+will have a variable defined either behind the code that wants to get
+to it or more than 255 memory locations ahead of the code that wants
+to access it.  By placing a temporary variable within and ahead of
+the code that wants to access it, and making the assembler do the work
+of keeping track of the address for the variable we want to get at
+this two step approach can be used to access any variable anywhere in
+memory.
+
+Although most instruction sets do not limit you to forward only pc
+relative addressing, most instruction sets have some mechanism
+for reaching near and far.  Some instruction sets specifically have
+near and far flavors of the instruction (which require variable length
+instructions).  Some instruction sets you have to specify the near or
+far flavor of the instruction yourself, causing an error if you reach
+too far with a near instruction, and other instruction sets use one
+mnemonic for both flavors and the assembler takes care of figuring it
+out for you and encoding the right instruction (taking some of the
+control over the instructions generated out of your hands).
+
+
+---------------------------------------------------------------------
+Lesson 9: ALU operations
+
+---- lesson09 ----
+    b lesson09
+    b lesson09
+lesson09:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r8,#0x01
+    llz r9,#0x02
+    add r9,r8
+    stw [r7],r8
+    stw [r7],r9
+
+    llz r8,#0xEF
+    dna r8,r9
+    stw [r7],r8
+
+    halt
+---- lesson09 ----
+
+
+You should see:
+
+show: 0x1234
+show: 0x0001
+show: 0x0003
+show: 0x00EC
+
+What does this program do?
+
+This demonstrates a couple of the several alu operations.  The first
+one is an add which performs the operation r9 = r9 + r8.  The second
+operation is a reverse and.  The truth table for an and operation says
+that any bit anded with a one is itself, and any bit anded with a zero
+is zero.  R9 is a 0x0003 at this point, a normal and with a 0x0003 would
+leave you with the upper 14 bits zero and the two lower bits the
+same as whatever the two lowere bits were in the destination register.
+This reverse and though does the opposite, the bits that line up with
+zero bits in the source register will stay the same and bits that line
+up with ones in the source register will be zeroed.  So the dna operation
+with a source of 0x0003 means the upper 14 bits stay the same and the lower
+2 bits get zeroed.  A dna with 0x0003 is the same as an and with 0xFFFC
+
+Why have a separate instruction? A dna of 0x0003 takes two instructions
+generally, an llz to put the 0x0003 in some register and the dna
+instruction.  An and of 0xFFFC takes three instructions lhz  with 0xFF
+and ll with 0xFC then the and.
+
+The full list of alu operations and there functions are defined here
+
+add rd,rs  rd = rd + rs
+sub rd,rs  rd = rd - rs
+and rd,rs  rd = rd & rs
+dna rd,rs  rd = rd & (~rs)
+or  rd,rs  rd = rd | rs
+xor rd,rs  rd = rd ^ rs
+neg rd,rs  rd =  0 - rs
+not rd,rs  rd =    ~ rs
+inc rd,rs  rd = rs +  1
+dec rd,rs  rd = rs -  1
+cmp rd,rs     = rd - rs
+tst rd,rs     = rd & rs
+
+Note that cmp (compare) and tst (test) do not modify the destination
+register.  They only update the flags, which we will get to in a few
+lessons.
+
+
+---------------------------------------------------------------------
+Lesson 10: Unconditional branch.
+
+---- lesson10 ----
+    b lesson10
+    b lesson10
+lesson10:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0x00
+    inc r6,r6
+    inc r6,r6
+    inc r6,r6
+    b lab01
+    inc r6,r6
+    inc r6,r6
+lab01:
+    inc r6,r6
+    inc r6,r6
+    inc r6,r6
+    stw [r7],r6
+
+    halt
+---- lesson10 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0006
+
+What does this program do?
+
+This program demonstrates the unconditional branch instruction (b).
+Unconditional means no matter what perform this branch.  A branch is
+also known as a jump in other instrution sets or a goto in C.  We have
+actually, obviously, been using the unconditional branch instruction in
+the vector table all along in these lessons.  This lesson formally
+introduces it as well as  demonstrates that it can be used anywhere not
+just in the vector table.
+
+There are eight increment instructions in this program, but two are
+branched over and not executed, so only six of them are executed causing
+r6 to end up as a 0x0006 when we show it.
+
+Some instruction sets are pipelined such that when you do a branch one
+or two instructions after the branch have to be executed, the processor
+has already fetched them and cannot remove them from the pipe (usually
+for design simplicity or performance reasons).  With processors like that
+one or both of the increments after the branch would have been executed.
+The lsa processor may at some point change or have a sister variant that
+does this, but this one does not.  The increment after the branch is not
+executed, so r6 is a 0x0006 when this is all said and done.
+
+---------------------------------------------------------------------
+Lesson 11:  Two simple flags
+
+---- lesson11 ----
+    b lesson11
+    b lesson11
+lesson11:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lhz r6,#0xFF
+    ll  r6,#0xFE
+    stw [r7],r6
+    inc r6,r6
+    stw [r7],r1
+    stw [r7],r6
+    inc r6,r6
+    stw [r7],r1
+    stw [r7],r6
+    dec r6,r6
+    stw [r7],r1
+    stw [r7],r6
+    dec r6,r6
+    stw [r7],r1
+    stw [r7],r6
+
+    stw [r7],r5
+
+    halt
+---- lesson13 ----
+
+You should see:
+
+show: 0x1234
+show: 0xFFFE
+show: 0x0004
+show: 0xFFFF
+show: 0x0003
+show: 0x0000
+show: 0x0004
+show: 0xFFFF
+show: 0x0006
+show: 0xFFFE
+show: 0x1234
+
+What does this program do?
+
+Like the program counter, r0, there are other registers that are not
+so general purpose.  r1, the status register (sometimes called the
+program status register psr), is one of those registers. The lower
+four bits of r1 are special, they hold status flags related to alu
+operations.  The other 12 bits are reserved for future use.
+
+The four flags are
+
+r1_bit_3 v signed overflow
+r1_bit_2 n negative
+r1_bit_1 c carry (unsigned overflow)
+r1_bit_0 z zero
+
+The overflows are a little more complicated so we will talk about them
+later.  The n and z flags are relatively simple though.
+
+The z flag means zero.  If the result of the alu operation is zero then
+this bit will be set (one).  If the result of the alu operation is not
+zero then this bit will be clear (zero).
+
+The n flag is there primarily for twos complement numbers, which you
+should go read up on if you are not familiar.  Basically the n bit gets
+bit 15 of the result of the alu operation.  Bit 15 is basically the sign
+bit for twos complement (16 bit) numbers, so if you are interested in a
+signed result and want to know if it is negative or not then you can use
+the n bit.  The n bit is set (one) if bit 15 of the result is set and
+the n bit is clear (zero) if bit 15 of the result is clear.
+
+All flags are modified by all of the alu operations.  The n flag may
+not make much sense for a bitwise logic operation like xor perhaps, but
+nevertheless n still gets bit 15 of the result (doesnt have to be used
+for signed operations, you are free to use it for whatever programming
+shortcut you see fit).  The z flag does make sense for all of the alu
+operations and will reflect a zero or non zero result.
+
+The program above shows that 0xFFFE + 0x0001, which results in 0xFFFF
+has bit 15 set so the n bit is one, and is not a zero so the z flag
+is zero.  Things change with 0xFFFF + 0x0001, the result is 0x0000,
+the z flag is set and the n flag is not.
+
+---------------------------------------------------------------------
+Lesson 14:  Our first conditional branch
+
+---- lesson14 ----
+    b lesson14
+    b lesson14
+lesson14:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0x04
+lab01:
+    stw [r7],r6
+    dec r6,r6
+    bz lab02
+    b lab01
+lab02:
+
+    stw [r7],r5
+
+    llz r6,#0x04
+lab03:
+    stw [r7],r6
+    dec r6,r6
+    bnz lab03
+
+    stw [r7],r5
+
+    halt
+---- lesson14 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0004
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x1234
+show: 0x0004
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x1234
+
+What does this program do?
+
+We learned what the z flag is and means.  We know what an unconditional
+branch is.  Now we get to see what the status flags/bits are for.  The
+program loads the value 0x0004 into r6.  We show r6, decrement it to
+0x0003 then the new instruction bz, which means branch if zero, or
+branch if the zero bit is set.  We know that dec is an alu operation and
+the result of that operation modifies the status register.  If the
+result of the dec is a 0x0000 then the z bit is set, otherwise it is
+not.  So for the case where the result is 0x0003 the z flag is not
+set, and the branch does not happen.  What that means is you do not
+branch to the address specified you simply continue on to the next
+instruction.  So for this case of dec resulting in 0x0003 we execute
+the next instruction which is an unconditional branch to lab01.
+
+This takes us back to show r6, and the decrement again.  This show and
+decrement loop continues until the dec instruction results in 0x0000.
+At that time the z bit is set and the bz branch to lab02 happens which
+takes us to an stw that shows r5 (0x1234).  We can see in the debug
+output
+
+show: 0x0004
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x1234
+
+that the last show before showing r5 is a 0x0001.  So r6 was a 0x0001
+the dec made it a 0x0000, the z bit was set the bz happened and 0x1234
+was the next thing we see.
+
+Normally you would use the bz to branch out of a loop when you have a
+number of things going on in the loop that need to branch out.  Multiple
+places in the loop.  For example this psuedo C code
+
+while(ra)
+{
+   if(rb==17) break;
+   something;
+   something;
+   if(ra==rc) break;
+   something;
+   something;
+}
+
+The while loop itself might be encoded to end with an unconditional
+branch.  The comparisons in the middle would likely be encoded as something
+like
+
+llz r8,17
+cmp r6,r8
+bz out_of_the_while_loop
+
+Likewise the ra == rc would probably be a cmp with a bz.
+
+The rest of the lesson though shows how you could save an instruction
+and use a different unconditional branch.
+
+Same as the first loop we start with r6 = 0x0004, we decrement r6 == 0x0003
+but now we see bnz, which means branch if not zero or branch if zero
+bit is not set.  Well a 0x0003 is not a zero so the z bit was not set
+so for this case we branch because z is not set.  This continues until
+the dec result is a 0x0000 where the z bit is set, and branch if not zero
+does not branch we execute on to the stw.  The net result of the two
+loops is the same, one takes more code and more instructions.
+
+Optimizing compilers will quite often use a decrement and branch if not
+zero at the end of a loop, for example
+
+for(ra=0;ra<10;ra++)
+{
+    something;
+}
+
+You could create that loop different ways.
+
+llz r10,#0
+loop:
+    stuff
+    stuff
+    stuff
+    inc r10,r10
+    llz r11,#10
+    cmp r10,r11
+    bnz loop
+
+another way, a little faster
+
+llz r10,#0
+llz r11,#10
+loop:
+    stuff
+    stuff
+    stuff
+    inc r10,r10
+    cmp r10,r11
+    bnz loop
+
+and another way, a little faster, assuming ra is never used in the
+loop other than as a loop counter
+
+llz r10,#10
+loop:
+    stuff
+    stuff
+    stuff
+    dec r10,r10
+    bnz loop
+llz r10,#10
+
+Technically ra in the C code ends up as a 10.  If the program did not
+use ra after that loop or changed it without using it an optimizing
+compiler would remove that last r10 = 10 assignment and left the tight
+dec and bnz loop.  No two compilers or optimizers are the same though
+so you may not actually see optimizations like this always happen.  You
+have to get familar with each compiler if you care to examine things
+at this level.
+
+The full list of branch instructions are listed below.  Future lessons
+will get into the c and v bits in more detail.
+
+b   unconditional branch
+bz  branch if zero (z = 1)
+bnz branch if not zero (z = 0)
+bc  branch if carry (c = 1) (unsigned greater or equal)
+bnc branch of not carry (c = 0) (unsigned less)
+bn  branch if negative (n = 1)
+bnn branch if not negative (n = 0)
+bv  branch if signed overflow (v = 1)
+bnv branch if not signed overflow (v = 0)
+bsg signed greater than or equal (n xor v) = 0  (n == v)
+bsl signed less than             (n xor v) = 1  (n != v)
+
+
+---------------------------------------------------------------------
+Lesson 15:  Another conditional branch
+
+---- lesson15 ----
+    b lesson15
+    b lesson15
+lesson15:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0x04
+lab01:
+    stw [r7],r6
+    dec r6,r6
+    bnn lab01
+
+    stw [r7],r5
+
+    halt
+---- lesson15 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0004
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x0000
+show: 0x1234
+
+What does this program do?
+
+This program uses the n flag for what it is, bit 15 of the result.
+Very similar to the prior lesson where we were counting down to zero
+this one goes one more time through the loop because from 0x0004 down
+to 0x0000 bit 15 is not set, when we decrement from 0x0000 to 0xFFFF
+(a negative one).  We get bit 15 set and the bnn (branch if not negative,
+n bit  = 0) does not happen.
+
+---------------------------------------------------------------------
+Lesson 16:  Carry bit (unsigned overflow)
+
+---- lesson16 ----
+    b lesson16
+    b lesson16
+lesson16:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0xFE
+    lh  r6,#0xFF
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    inc r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    inc r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    inc r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+
+    halt
+---- lesson16 ----
+
+You should see:
+
+show: 0x1234
+show: 0xFFFE
+show: 0x0000
+show: 0x1234
+show: 0xFFFF
+show: 0x0004
+show: 0x1234
+show: 0x0000
+show: 0x0003
+show: 0x1234
+show: 0x0001
+show: 0x0000
+show: 0x1234
+show: 0x0000
+show: 0x0003
+show: 0x1234
+show: 0xFFFF
+show: 0x0004
+show: 0x1234
+show: 0xFFFE
+show: 0x0006
+show: 0x1234
+show: 0xFFFD
+show: 0x0006
+show: 0x1234
+
+What does this program do?
+
+Think about elementary school and you were learning to add.  And you would
+line up numbers like 97 + 5.  Add the ones column you get "two carry the
+one".  Then the tens column "zero carry the one" and that last one
+drops down for the hundreds column.  Well think about those carry bits
+taking you from one column to the next and think about not having enough
+digits to store every number you could think of.  Say you only had two
+digits, instead of 102 the answer would have been 02 with the carry bit
+set.  The carry bit indicating there was not enough room to store the
+whole number in the register/destination.
+
+Look at the program above, when we add 0x0001 to 0xFFFE we get 0xFFFF,
+and the carry bit is zero.  Next 0xFFFF + 0x0001 is really 0x10000 but
+the registers are 16 bit so it is 0x0000 with the carry bit set.
+0x0000 + 0x0001 is 0x0001 no problem, no carry bit.
+
+The first decrement is a bit tricky and perhaps confusing.  Subtracting
+one is the same as adding a minus one.  And that is what the hardware
+does anyway.  We take the twos complement of 1 to get a minus one which
+is 0xFFFF.  So 0x0001 - 0x0001 is the same as 0x0001 + 0xFFFF and the
+result of that is 0x10000 or 0x0000 with the carry bit set.  After
+that 0x0000 - 0x0001 is 0x0000 + 0xFFFF = 0xFFFF no problem, no carry.
+
+Just like that boundary between 99 and 00 in a two digit decimal
+world is where we would see the carry bit come in to play to
+indicate overflow (overflow of 99 to something it cannot store).  The
+boundary between 0xFFFF and 0x0000 is where we overflow the register
+and have the carry bit come in to play.  And it is not just
+with increments of course, 0xFFFF + 0xFFFF is 0x1FFFE or 0xFFFE with the
+carry bit set.  0xFFFE + 0x0005 is 0x0003 with the carry bit set.
+
+
+---------------------------------------------------------------------
+Lesson 17:  Signed overflow bit (v)
+
+---- lesson17 ----
+    b lesson17
+    b lesson17
+lesson17:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0xFE
+    lh  r6,#0x7F
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    inc r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    inc r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    inc r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+    dec r6,r6
+    stw [r7],r6
+    stw [r7],r1
+    stw [r7],r5
+
+    halt
+---- lesson17 ----
+
+You should see:
+
+show: 0x1234
+show: 0x7FFE
+show: 0x0000
+show: 0x1234
+show: 0x7FFF
+show: 0x0000
+show: 0x1234
+show: 0x8000
+show: 0x000C
+show: 0x1234
+show: 0x8001
+show: 0x0004
+show: 0x1234
+show: 0x8000
+show: 0x0006
+show: 0x1234
+show: 0x7FFF
+show: 0x000A
+show: 0x1234
+show: 0x7FFE
+show: 0x0002
+show: 0x1234
+show: 0x7FFD
+show: 0x0002
+show: 0x1234
+
+What does this program do?
+
+Just like the carry bit indicated unsigned addition (or subtraction) had
+overflowed the storage capabilities of a register, the v bit, the
+signed overflow indicates that an add or sub overflowed when the
+numbers are considered signed.
+
+Considered signed, what does that mean?  Binary addition and subtraction
+logic does not care about signed numbers vs unsigned numbers.  That is the
+beauty of twos complement, it makes it so the math just workes, period.
+(from a hardware perspective).
+
+Think about 0x0000 + 0xFFFF, that can be thought of as 0 plus 65535 or
+it could be thought of as 0 plus -1.  And in both cases the result is
+0xFFFF, which can be thought of as 65535 if the numbers are considered
+unsigned or -1 if the numbers are considered signed.
+
+So starting with 0x7FFE which is a 32766, we add one we get 0x7FFF or
+32767.  Add 0x7FFF + 0x0001 we get 0x8000 which is a -32768, note
+the sign changed, and note that the v bit was set on this one, we
+dont have the ability to store a twos complement +32768 (+32767 + 0x0001)
+in 16 bits so we had a signed overflow.
+
+0x8000 + 0x0001 gives 0x8001 which is a -32767, no problem storing that
+one so the v bit is zero.  Now we go back the other way 0x8001 - 0x0001
+is 0x8000 or -32768 which we can store, then -32768 - 1 is ideally -32769
+but we dont have room to store that so we get 0x8000 - 0x0001 = 0x7FFF
+which is +32767 and the v flag is set.  +32767 - 1 = +32766 and we have
+room for that and so on.
+
+Just like the carry bit dealt with the boundary between the largest
+unsigned number (0xFFFF) and the smallest (0x0000), the v bit deals
+with that boundary between the largest signed number (0x7FFF) and the
+smallest signed number (0x8000).
+
+As with the z and n bits there are conditional branch instructions
+for the c and v bits being 0 or 1 (bc, bnc, bv, bnv).
+
+
+
+---------------------------------------------------------------------
+Lesson 18:  Unsigned and signed conditional branches
+
+---- lesson18 ----
+    b lesson18
+    b lesson18
+lesson18:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r10,#0x06
+    llz r11,#0x05
+    cmp r10,r11
+    stw [r7],r1
+
+    dec r10,r10
+    cmp r10,r11
+    stw [r7],r1
+
+    dec r10,r10
+    cmp r10,r11
+    stw [r7],r1
+
+    lhz r10,#0x80
+    lhz r11,#0x7F
+    ll  r11,#0xFF
+    cmp r10,r11
+    stw [r7],r1
+
+    dec r10,r10
+    cmp r10,r11
+    stw [r7],r1
+
+    dec r10,r10
+    cmp r10,r11
+    stw [r7],r1
+
+    llz r10,#0x06
+    lhz r11,#0xFF
+    ll  r11,#0xFB
+    cmp r10,r11
+    stw [r7],r1
+
+    cmp r11,r10
+    stw [r7],r1
+
+    cmp r10,r10
+    stw [r7],r1
+
+    cmp r11,r11
+    stw [r7],r1
+
+    halt
+---- lesson18 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0002
+show: 0x0003
+show: 0x0004
+show: 0x000A
+show: 0x0003
+show: 0x0004
+show: 0x0000
+show: 0x0006
+show: 0x0003
+show: 0x0003
+
+What does this program do?
+
+First thing we do is do a compare, which is the same as a subtract except
+it does not store the result anywhere, it just changes the flags.  (r10
+does not change with this cmp, if it had been sub r10,r11 it would
+have changed)
+
+We do six comparisions.  The goal here is to figure out unsigned
+greater than, unsigned less than, unsigned greater than or equal,
+signed greater than, signed less than and signed greater than or equal.
+
+Thinking in terms of unsigned numbers
+
+0x0006 - 0x0005 v = 0, n = 0, c = 1, and z = 0  6 - 5
+0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1  5 - 5
+0x0004 - 0x0005 v = 0, n = 1, c = 0, and z = 0  4 - 5
+
+0x8000 - 0x7FFF v = 1, n = 0, c = 1, and z = 0  32768 - 32767
+0x7FFF - 0x7FFF v = 0, n = 0, c = 1, and z = 1  32767 - 32767
+0x7FFE - 0x7FFF v = 0, n = 1, c = 0, and z = 0  32766 - 32767
+
+0x0006 - 0xFFFB v = 0, n = 0, c = 0, and z = 0  6 - 65531
+0xFFFB - 0x0006 v = 0, n = 1, c = 1, and z = 0  65531 - 6
+0x0006 - 0x0006 v = 0, n = 0, c = 1, and z = 1  6 - 6
+0xFFFB - 0xFFFB v = 0, n = 0, c = 1, and z = 1  65531 - 65531
+
+Right off we see that the c bit indicates unsigned greater than or
+equal (the register on the left of the compare is unsigned greater than
+or equal to the register on the right).  So a bc, branch if carry set,
+is also the same as saying branch if unsigned greater than or equal.
+And bnc means branch if unsigned less than.
+
+But what if we want just an unsigned greater than but not equal?  Well
+reverse the operands, if these compares were cmp r11,r10 then:
+
+0x0005 - 0x0006 v = 0, n = 0, c = 0, and z = 0
+0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1
+0x0005 - 0x0004 v = 0, n = 1, c = 1, and z = 0
+
+So r10 greater than but not equal to r11 is the same as saying r11 is
+less than but not equal to r10, and we can use the carry bit (bnc).
+
+Back to the code as written but thinking in terms of signed numbers
+
+0x0006 - 0x0005 v = 0, n = 0, c = 1, and z = 0  6 - 5
+0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1  5 - 5
+0x0004 - 0x0005 v = 0, n = 1, c = 0, and z = 0  4 - 5
+
+0x8000 - 0x7FFF v = 1, n = 0, c = 1, and z = 0  -32768 - 32767
+0x7FFF - 0x7FFF v = 0, n = 0, c = 1, and z = 1   32767 - 32767
+0x7FFE - 0x7FFF v = 0, n = 1, c = 0, and z = 0   32766 - 32767
+
+0x0006 - 0xFFFB v = 0, n = 0, c = 0, and z = 0  6 - -5
+0xFFFB - 0x0006 v = 0, n = 1, c = 1, and z = 0  -5 - 6
+0x0006 - 0x0006 v = 0, n = 0, c = 1, and z = 1  6 - 6
+0xFFFB - 0xFFFB v = 0, n = 0, c = 1, and z = 1  -5 - -5
+
+This one is harder to see, the v and n bits are used.  When v and n
+are the same (both a 0 or both a 1) then you have a signed greater
+than or equal.  When v and n are different from each other you have
+a signed less than.  Since two flags are needed for this and they have
+to be compared to each other, two special instructions have been
+implemented one is the bsg, branch if signed greater than (or equal),
+and the other is bsl, branch if signed less than.
+
+Just like the unsigned case if you are interested in signed greater than
+but not equal, then reverse the operands and look for a signed less than.
+
+
+
+---------------------------------------------------------------------
+Lesson 19:  Register based branching
+
+---- lesson19 ----
+    b lesson19
+    b lesson19
+lesson19:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lpc r8,lab02add
+    stw [r7],r8
+    llz r6,#0x02
+lab01:
+    stw [r7],r6
+    dec r6,r6
+    bz r8
+    b lab01
+lab02:
+    stw [r7],r5
+    halt
+lab02add: .word =lab02
+---- lesson19 ----
+
+You should see:
+
+show: 0x1234
+show: 0x000D
+show: 0x0002
+show: 0x0001
+show: 0x1234
+
+What does this program do?
+
+Up until now the branch instructions we have been using were PC relative.
+Just like the lpc and spc instructions these branches took the current
+PC, and the instruction had a signed offset it added to the PC to
+compute the branch destination address (if the condition was true).  Unlike
+lpc and spc, the conditional branches can reach backward and forward
+as we have seen.  This gives them a limited range, in order to get
+a larger range all of the branch instructions have a version where a
+register is used to hold the destination address (if the condition is
+true).
+
+To implement this we have a loop that counts down, when it gets to zero
+we want to branch out of the loop with a bz.  In order to use a register
+branch in this way, then at some time before that instruction we have to
+place the address in that register.  In this case we have the assembler
+do the work for us, by using a word in memory to hold the address of
+lab02, we load the address of lab02 into register r8 using an lpc
+instruction.  When the time comes the bz r8 will branch to the address
+in r8 which is lab02.
+
+
+---------------------------------------------------------------------
+Lesson 20:  Branch table
+
+---- lesson20 ----
+    b lesson20
+    b lesson20
+lesson20:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r8,#0x02
+
+    llz r11,#0x03
+    and r8,r11
+    llz r10,#0x00
+    lpc r6,branch_table_add
+    add r6,r8
+    ldw r9,[r6]
+    b r9
+    halt
+
+lab00:
+    llz r10,#0x30
+    b done
+lab01:
+    llz r10,#0x31
+    b done
+lab02:
+    llz r10,#0x32
+    b done
+lab03:
+    llz r10,#0x33
+    b done
+
+done:
+    stw [r7],r10
+    halt
+
+branch_table_add: .word =branch_table
+branch_table:
+    .word =lab00
+    .word =lab01
+    .word =lab02
+    .word =lab03
+---- lesson20 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0032
+
+What does this program do?
+
+This is an example of how you would implement a branch or jump table.
+Say for example you had a small, simple switch statement in C, you might
+implement that using a jump table if the number of cases are small enough
+to be practical and the case values are such that you can use simple
+math to uniquely identify which one.
+
+This particular example assumes that r8 is one of the values 0, 1, 2,
+or 3.  We hard code r8 to a 0x02, but lets pretend we didnt know its
+value.  And r8 with a 3 so that we stay contained within our table.
+Get the address to the beginning of the table in r6, add r8 to that to
+get the address of the element in the table we are interested in.  Load
+that element in the table into register r9 and then branch to the address
+in r9.
+
+Each of the four addresses contain code specific to that r8 input condition
+that code is executed and converges on a common point to continue.
+
+This method of using a table of items and indexing into them is also
+called a look up table, or more simply an array.  In this case our
+array is an array of 4 addresses and we have looked up the address at
+index 2 and then used it.
+
+
+---------------------------------------------------------------------
+Lesson 21:  Move and swap
+
+---- lesson21 ----
+    b lesson21
+    b lesson21
+lesson21:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r10,#5
+    llz r11,#6
+    swap r10,r11
+    stw [r7],r10
+    stw [r7],r11
+    mov r10,r11
+    stw [r7],r10
+    stw [r7],r11
+    halt
+---- lesson21 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0006
+show: 0x0005
+show: 0x0005
+show: 0x0005
+
+What does this program do?
+
+The swap instruction swaps the contents of the two registers. Swap is
+not an alu operation so it does not modify the flags register (unless
+of course r1 is one of the registers).
+
+A move instruction simply moves (well actually it copies) the source
+contents to the destination.
+
+There is a variant of the lsa processor that has up to 128 general
+purpose registers.  All instructions except for the mov instruction are
+limited to register r0 - r15.  These extra registers r16 on up are
+called the high registers.  These can be thought of as extra, easy to
+get at memory.  Normally when you access memory you have to use a
+register and put an address in it and then perform a memory operation,
+with these registers you can do all of that with a single mov.  Due to
+the fixed instruction set length nature of the lsa processor one of the
+two registers has to be a low register or r0 - r15, the other can be
+any (supported) register.  It is better to assume that only r0 - r15 have
+been implemented.  The hardware engineer can choose to have 32 or 64 up
+to 128 registers, so if there are high registers you need to find out
+exactly how many before you use them.
+
+Many processors use the mov instruction for moving from register to
+register, immediate to register, memory to register, register to memory,
+etc.  And the syntax like brackets or pound signs, etc tell the
+assembler what flavor of mov instruction was desired.  The lsa processor
+forces you to specify what flavor of instruction you want as well as
+force the additional syntax like brackets and pound signs.
+
+
+
+---------------------------------------------------------------------
+Lesson 22:  Shifts
+
+---- lesson22 ----
+    b lesson22
+    b lesson22
+lesson22:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0x88
+    lsl r6,#1
+    stw [r7],r6
+    lsl r6,#3
+    stw [r7],r6
+
+    lhz r6,#0xFF
+    lsl r6,#4
+    stw [r7],r6
+
+    lsr r6,#2
+    stw [r7],r6
+
+    lhz r6,#0x90
+    asr r6,#2
+    stw [r7],r6
+
+    lsr r6,r5
+    stw [r7],r6
+
+    halt
+---- lesson22 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0110
+show: 0x0880
+show: 0xF000
+show: 0x3C00
+show: 0xE400
+show: 0x0E40
+
+What does this program do?
+
+The shift instructions, lsl, lsr, asr, are used to perform bitwise
+shifts.  Very similar to the << and >> operations in C.
+
+The program starts by putting 0x0088 in r6.  Then it performs a logical
+shift left (lsl) of 1 bit.
+
+We started with
+
+0000000010001000
+
+We discard the top bit, shift everything left one and shift in a zero
+as the new bit on the right
+
+0000000010001000
+ 000000010001000
+000000010001000
+0000000100010000
+
+Giving 0x0110.
+
+Some processors let you only shift one bit left or one bit right per
+instruction.  The lsa processor allows you to shift as many as 15 bits
+in one instruction.  The next shift we perform is also a left shift, lsl,
+this time 3 bits.
+
+r6 starts with
+
+0000000100010000
+
+Discard three off the top and shift in three zeros on the right and
+you get.
+
+0000000100010000 started with this
+   0000100010000 discard the top three bits
+0000100010000    shift three bits left
+0000100010000000 the new bits are zeros
+
+So the result is 0x0880.
+
+This three bit lsl is the same as this C code:
+
+unsigned short rx;
+rx = 0x0110;
+rx <<= 3;
+
+Next we put the value 0xFF00 in r6 and perform a 4 bit shift
+
+1111111100000000
+
+Discard the top 4 bits, shift left 4, shifting in zeros from the right
+gives
+
+1111111100000000
+    111100000000
+111100000000
+1111000000000000
+
+or 0xF000.
+
+Now we shift right, lsr, logical shift right.  Same as lsl but in the
+other direction.  We left off with r6 = 0xF000 and want to shift right
+2 bits.
+
+1111000000000000
+
+discard the lower 2 bits, shift right 2, put zeros in on the left
+
+1111000000000000
+11110000000000
+  11110000000000
+0011110000000000
+
+or 0x3C00
+
+Now we get into the arithmetic shift right, asr.  This is one you
+use when you have a signed number as it sign extends or otherwise
+preserves the sign bit.  We start with r6 = 0x9000 and want to shift
+right arithmetically 2 bits.  With a logical shift we arbitrarily shift
+zeros in to fill in the new bits, with an arithmetic shift we use bit
+15 as the value we shift in.
+
+So looking at the shifts one bit at a time, discard the lower bit,
+shift right one, instead of shifting in a zero shift in whatever
+r15 was before the shift.
+
+1001000000000000 start here
+100100000000000  discard lower bit
+ 100100000000000 shift right one
+1100100000000000 take r15 from before (now r14) and shift that in
+
+The second shift would then end up with
+
+1110010000000000
+
+giving 0xE400. If bit 15 had been a zero instead then zeros would have
+shifted in from the top.  This instruction is useful when you want to,
+as we did in the example, divide a signed number by 4.  Using the C
+style logical shift right this would not have worked for a signed number.
+Shifting in a zero from the top would result in a positive number.  If
+the signed number were positive you would have been okay.
+
+The last example shows a logical shift right using a register as the
+source.  The lower four bits of the source register determine how much
+to shift, in this case r6 = 0xE400 and r5 = 0x1234, so the lower four
+bits of r5 are 0x4 which means we want to shift r6 right 4 bits.  This
+is a logical shift so zeros are shifted in from the top and the result
+is 0x0E40.
+
+
+
+
+
+---------------------------------------------------------------------
+Lesson 23:  Rotates
+
+---- lesson23 ----
+    b lesson23
+    b lesson23
+lesson23:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    llz r6,#0x88
+    rol r6,#1
+    stw [r7],r6
+    ror r6,#5
+    stw [r7],r6
+
+    lhz r6,#0xFF
+    rol r6,#4
+    stw [r7],r6
+
+    ror r6,#2
+    stw [r7],r6
+
+    lhz r6,#0x90
+    llz r1,#0x00
+    rlc r6,r5
+    stw [r7],r6
+    stw [r7],r1
+
+    rrc r6,#1
+    stw [r7],r6
+
+    halt
+---- lesson23 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0110
+show: 0x8008
+show: 0xF00F
+show: 0xFC03
+show: 0x0004
+show: 0x0002
+show: 0x8002
+
+What does this program do?
+
+Rotates are very similar to shifts, the difference is that with a shift
+the bits that are shifted off, are gone forever, off into the bit bucket
+or into the ether.  With a rotate you preserve all of the bits, bits
+shifted off of one end of the register find their way into the other
+end of the register.
+
+We start with r6 = 0x0088 and rotate left (rol) 1 bit.  The rol and rol
+instructions take the bits off of one end and directly roll them into
+the other end.  Start with
+
+ 0000000010001000
+
+rol 1 bit so separate one bit off the top
+
+0 000000010001000
+
+and stick it on the bottom
+
+000000010001000 0
+
+becomes
+
+0000000100010000
+
+Or 0x0110.
+
+Now we want to rotate right, ror that number 5 bits
+
+0000000100010000
+
+separate 5 bits on the right
+
+00000001000 10000
+
+And put them on the top
+
+10000 00000001000
+
+becomes
+
+1000000000001000
+
+Which is 0x8008.
+
+Next start with 0xFF00 and rol 4 bits.
+
+1111111100000000
+
+take 4 off the left and put them on the right.
+
+1111 111100000000
+111100000000 1111
+1111000000001111
+
+Which is 0xF00F.
+
+Now ror 2 bits.
+
+1111000000001111
+11110000000011 11
+11 11110000000011
+1111110000000011
+
+Which is 0xFC03
+
+Now there are two more flavors of rotate, rrc and rlc, these use the
+carry bit in the rotation.  So for example with a ror, for each shift
+the bit that was in bit 0 of the register goes into bit 15 of the register.
+With a rrc, the bit in bit 0 of the register goes into the carry bit
+in r1, what was in the carry bit in r1 goes into bit 15 of the register.
+Rotate right through carry, or rotate left through carry.
+
+As with the shifts, the rotates can use either an immediate value in
+the instruction or a register, and as with the shifts the lower 4 bits
+of that register are the shift amount, the upper 12 bits of the value
+in that register are ignored.
+
+Starting with a 0x9000 rotate left through carry r5 bits, r5 contains
+0x1234 so the rrl is 4 bits.  Before we do this though there is a
+load of r1, looks a bit scary to be messing with r1, but what that is
+doing is making the carry bit a known state, otherwise we start to
+rotate and whatever was left in the carry bit gets dragged into our
+register, we probably dont want that.  An and r6,r6 (or any register
+with itself) would have done the same thing as an and clears the c and
+v bits no matter what the data is.
+
+We can think of this two ways, think about shifting one bit at a time
+until we get the number of shifts, or think about chopping off the
+total amount of bits, one of them being left behind as the carry and
+another picking up the old carry bit.
+
+Going to draw the carry bit out on the left by itself
+
+0 1001000000000000
+1 0010000000000000 first bit shift through carry
+0 0100000000000001 shift 2
+0 1000000000000010 shift 3
+1 0000000000000100 shift 4
+
+result is 0x0004 with a one in the carry bit which we see with a show
+of 0x0002.
+
+The last thing is rrc 1 bit, remember for rrc bit 0 goes into the carry
+bit and the carry bit goes into bit 15.
+
+1 0000000000000100 we were left with this
+0 1000000000000010 shift 1
+
+And the result is 0x8002.
+
+---------------------------------------------------------------------
+Lesson 24:  The Stack
+
+---- lesson24 ----
+    b lesson24
+    b lesson24
+lesson24:
+    llz r5,#0x34
+    lh  r5,#0x12
+    lhz r7,#0xFF
+    stw [r7],r5
+
+    lhz r2,#0x10
+
+    llz r6,#0x01
+    push r6
+    inc r6,r6
+    push r6
+    inc r6,r6
+    stw [--r2],r6
+
+    lsp r8,#0
+    stw [r7],r8
+    lsp r8,#1
+    stw [r7],r8
+    lsp r8,#2
+    stw [r7],r8
+    pop r8
+    stw [r7],r8
+    lsp r8,#0
+    stw [r7],r8
+    ldw r8,[r2++]
+    stw [r7],r8
+    ldw r8,[r2++]
+    stw [r7],r8
+
+    halt
+---- lesson24 ----
+
+You should see:
+
+show: 0x1234
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x0003
+show: 0x0002
+show: 0x0002
+show: 0x0001
+
+What does this program do?
+
+The last of the three not so general purpose, general purpose registers,
+r2 is also known as the stack pointer.  You may have heard of the term
+stack from prior programming experience.  Putting things on the stack, etc.
+
+The stack is basically just memory, and often has a register reserved
+for it as often you have special functions that use that register.  The
+lsa processor does have two instructions (lsp, ssp) that have r2
+hardcoded in the logic in the same way that lpc and spc have r0
+hardcoded.  That is not typical though.  What you typically see (in
+other processors) is some sort of push instruction and some sort of
+pop instruction being the instructions with the stack pointer hardcoded
+in the logic.
+
+Maybe you are not old enough to remember a time where almost everyones
+bathroom had a dixie cup dispenser.  Well imagine kid sized disposable
+paper cups, or plastic if it helps your visualization.  And a plastic
+cylinder holder thing that holds the cups leaving one cup visible sticking
+out the bottom.  If you pull that bottom cup out you get one cup and there
+is another one hanging there ready to be pulled out.  Now imagine those
+cups are memory locations in your stack.  If you want to save something
+temporarily, something that for various reasons does not need or want
+a permanent address.  Lets say you have an operation that needs 7
+registers but you have used all but 5 and need to temporarily save
+the contents of two registers so you can have 7 available for this
+operation. Well you could put those registers "on the stack", using a
+push instruction, think of writing the value of the first register on
+a cup and pushing that cup up into the dixie cup holder.  Then writing
+the value of the second register on another cup and pushing that cup
+into the dixie cup holder, now you can use the 7 registers for your
+operation, when you are finished you can put those two registers back
+the way they were by popping the bottom cup, pulling it out of the
+holder and looking at its contents and putting back into the SECOND
+register, the last thing you put on the stack.  Then pull (pop) what is
+now the bottom cup and put that in the FIRST register.  You basically
+borrowed two memory locations temporarily and the key is that you didnt
+know, nor did you care how many cups were in the Dixie cup dispenser
+when you started, you pushed two cups up into the dispenser, then you
+removed two cups. You left it the way you found it.  What you did care
+about is the number of items pushed and the order you pushed them.  So
+that you can undo everything in reverse order.
+
+Hopefully that was not too confusing of a visualization.  To be more
+detailed, a push, on the lsa processor is a stw [--r2],rs, the stack
+pointer is decremented one word location, and the desired register
+is stored at that address.  A pop on the lsa processor is an
+ldw rd,[r2++], read the value at the address pointed to by r2,
+then increment r2 one word location, save the value read in the
+destination register.
+
+Assume r2 at the moment is at address X (other than initialization at
+boot time we dont normally care exactly what the stack pointer value
+is) and we do this:
+
+    stw [--r2],r6 ; push, store r6 at address X-1
+    stw [--r2],r7 ; push, store r7 at address X-2
+    llz r6,#0x55
+    llz r7,#0x66
+    ldw r7,[r2++] ; pop, restore r7 from address X-2
+    ldw r6,[r2++] ; pop, restore r6 from address X-1
+
+After pushing r6 and r7 on the stack we can use them at will and not
+worry about whatever important information they were holding for us.
+When done using them we put them back the way we found them, same
+number of pops as pushes and in the reverse order.  When done
+r2, r6, and r7 are back the way we found them.
+
+The lsa-as assembler has a nice labor saving feature.  Instead of
+typing
+
+    stw [--r2],r6
+
+We can take a shortcut and type
+
+    push r6
+
+Likewise instead of typing
+
+    ldw r6,[r2++]
+
+We can type
+
+    pop r6
+
+The lsa-as assembler will encode the proper instruction for you, saving
+some typing and making the code more readable.  The example mixes both
+the complete syntax and the shortcut.  If you examine the machine code
+created by lsa-as you will see that it did indeed create the same
+instructions.
+
+Now let's look at the example program for this lesson.  At some point
+before you start using the stack you do need to define where it starts
+in memory.  The stack "grows" down, so we need to put it at a high
+enough memory address such that as it grows down it doesnt go so far
+as to run into our program or any of our data.  For this example 0x1000
+is plenty high enough.  Also remember that a push decrements the
+stack pointer first then uses that memory location so 0x1000 is not
+actually used by the stack, the first location used is 0x0FFF.
+
+Now we have a stack ready to use.  R6 gets the value 0x0001 we push
+that on the stack.  This means memory location 0x0FFF holds 0x0001.
+We increment r6 to the value 0x0002 and push that on the stack, memory
+location 0x0FFE holds a 0x0002.  We increment r6 to 0x0003 and push
+that on the stack. 0x0FFD holds the value 0x0003.
+
+And after all of this we get to our first new instruction, lsp, load
+sp relative.  And it has only one form where you can have an 8 bit
+immediate.  It is defined as:
+
+    lsp rd,#imm
+
+    rd = memory[sp+imm]
+
+So lsp r8,#0 means read from memory wherever r2+0 is at at the moment
+and put that in r8.  Well r2 is currently 0x0FFD and 0x0FFD+0 currently
+has the value 0x0003, so r8 gets a 0x0003 and we show that.  Note
+that we have not moved r2, this was NOT a push or pop we are simply
+looking at the bottom few things on the stack without moving the
+stack.
+
+lsp r8,#1 will look at the address r2+1.  R2 is at 0x0FFD, reading
+0xFFD+1 which is 0x0FFE we get 0x0002 and we show that.
+
+lsp r8,#2 reads memory at address 0x0FFF and gets a 0x0001
+
+Now we pop the first thing in the stack into r8.  There is no rule that
+you have to pop to the same register you pushed, this is assembly
+language you can do whatever you want.  So r8 gets the last thing
+put on the stack, a 0x0003, and we show that.  This was a pop so it
+did move the stack pointer to 0x0FFE.  The lsp r8,#1 is reading
+0x0FFF, which is a 0x0002 and we show that.
+
+We have had enough fun so we clean up the stack by popping the other
+two items we had pushed and show them as we go.  Being assembly
+language, do you really have to pop everything off the stack?  For
+examples like this, no, of course not, who is going to care if we
+leave stuff there, not going to get punished for breaking any rules.
+But for real applications you had better make an effort to put the
+stack back the way you found it.  While cleaning up the stack if we
+didnt care about those two values for whatever reason instead of poping
+them into registers we could have added a 2 to the stack pointer to
+restore the stack pointer and essentially discard those items.  Adding
+two takes two instructions so it comes out as a wash, but if we had
+10 items to clean up that we didnt care to save adding 10 takes two
+instructions where 10 pops takes 10 instructions.
+
+
+---------------------------------------------------------------------
+Lesson 25:  Put it all together
+
+---- lesson25 ----
+    b lesson25
+    b lesson25
+lesson25:
+    lhz r2,#0x10
+
+    lpc r3,main_add
+    call r4,r3
+    halt
+
+myfun:
+    llz r11,#3
+    cmp r10,r11
+    bc myfun_one
+
+    push r4
+    push r10
+    inc r10,r10
+    lpc r3,myfun_add
+    call r4,r3
+    pop r10
+    pop r4
+myfun_one:
+    lhz r11,#0xFF
+    stw [r11],r10
+    b r4
+
+main:
+    push r4
+    llz r10,#0
+    lpc r3,myfun_add
+    call r4,r3
+    llz r10,#0
+    pop r4
+    b r4
+
+main_add: .word =main
+myfun_add: .word =myfun
+---- lesson25 ----
+
+You should see:
+
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x0000
+
+What does this program do?
+
+Now we are going to learn the last instruction and put all of what
+we have learned into a real program.  And not just any program, a
+program that uses recursion.  You should have some programming experience
+before starting these lessons, so you can understand functions or
+subroutines.  Recursion is where a subroutine calls itself (ideally
+with a point where it stops calling itself so you dont get stuck calling
+yourself forever).
+
+This is the C program that we are going to write in assembly language
+
+void myfun ( unsigned short ra )
+{
+    if(ra<3)
+        myfun(ra+1);
+    printf("0x%04X\n",ra);
+}
+unsigned short main ( void )
+{
+    myfun(0);
+    return(0);
+}
+
+Before we start though we need to define our "calling convention".
+What is a calling convention?  It is a set of rules we use to program
+the assembler such that we can call functions in a way that
+whoever writes the code for the function can follow the same programming
+model, and functions written by the same person or different persons
+will always work.  The opposite would be that for each function out
+there you could/would have a unique calling convention, for any function
+that wants to call another function you would have to look up that
+calling convention up in some reference manual for that function and
+use it.
+
+For this exercise:
+r3 is reserved for computing addresses to call
+r4 is the return address from a call, b r4 to return.
+r10 is the first parameter passed to a function
+r11 is the second, but we dont need more than one for this program
+Functions can destroy/use r10-r13 at will (observing of course the
+passed parameters arrive in those registers) but any other register
+used needs to be preserved (on the stack).  The exception is r3 which
+is reserved in the sense that you can destroy it/use it any time you
+want to make a call, basically r3 is also a throwaway register.
+
+Those are enough rules to implement this program.
+
+First let's look at the assembler with the C program laid in as comments
+to see what is related to what.
+
+    b lesson25
+    b lesson25
+lesson25:
+    lhz r2,#0x10
+
+    lpc r3,main_add
+    call r4,r3
+    halt
+
+; void myfun ( unsigned short ra )
+; {
+myfun:
+
+    ; if(ra<3)
+    llz r11,#3
+    cmp r10,r11
+    bc myfun_one
+
+    ;     myfun(ra+1)
+    push r4
+    push r10
+    inc r10,r10
+    lpc r3,myfun_add
+    call r4,r3
+    pop r10
+    pop r4
+
+myfun_one:
+    ; printf("0x%04X\n",ra);
+    lhz r11,#0xFF
+    stw [r11],r10
+    b r4
+; }
+; unsigned short main ( void )
+; {
+main:
+
+    push r4
+    ; myfun(0);
+    llz r10,#0
+    lpc r3,myfun_add
+    call r4,r3
+    pop r4
+
+    ; return(0);
+    llz r10,#0
+    b r4
+
+; }
+; some global, internal variables
+main_add: .word =main
+myfun_add: .word =myfun
+
+
+Now lets walk through this code to understand it.
+
+So we start by booting up and we need to initialize the stack pointer.
+You have to initialize your stack pointer before you can use the stack.
+In this case we have set the stack pointer (r2) to 0x1000.  Enough room
+for this example.
+
+    b lesson25
+    b lesson25
+lesson25:
+    lhz r2,#0x10
+
+Normally your boot code would do other initialization stuff, eventually
+you need to call main().  This is our new instruction for this lesson,
+call.
+
+What the call instruction does is it takes the pc at the time of
+execution, which we know the pc points at the next instruction, it puts
+that address in the first register specified.  In this case r4.  The
+contents of the other register, r3 in this case, is then put into the
+pc, which is just like an unconditional branch using a register.  The
+next instruction executed will be from whatever address we changed the
+pc to.  It helps to think of the two registers rd,rs like you would
+with say an alu instruction, the one on the left, the destination gets
+modified (loaded with the pc), the one on the right gets read/used but
+is not modified (is loaded into the pc).
+
+Remember that our calling convetion says that r3 is reserved for
+computing addresses to call, and r4 holds the return address. call r4,r3
+does just that.
+
+Main in this case does not have any parameters so we dont have to mess
+with r10.
+
+    lpc r3,main_add
+    call r4,r3
+
+If/when main returns it will return here (the instruction after the call)
+and we dont have anything else to do so we will halt.
+
+    halt
+
+Going out of order from the assembly code and going to explain main
+first then myfun
+
+So we happen to use a label called main, matching the C function name
+to make life easier.  Should have made that a calling convention rule,
+hmmm.  This label is where code starts for this function, our entry
+point in this function.
+
+; unsigned short main ( void )
+; {
+main:
+
+The first thing we want to do in main() is call myfun.  But we know
+that to make a call we will destroy r4, of the registers we are using
+in main r3 we can modify for calls, r10 thru r13 we can modify, but r4
+we are going to need to return, and the call will modify it so, per
+the calling convention we need to preserve r4 by putting it on the stack.
+
+    push r4
+
+Now let's call myfun.  We need to pass a parameter to myfun, the value
+zero.  The calling convention rules state that the first parameter
+goes in r10, it also says we do not have to preserve r10 so no need
+to push it on the stack.
+
+    ; myfun(0);
+    llz r10,#0
+
+Then we can call myfun, we saw above how to use r3 for the address to
+call, and r4 will get filled with the address after the call so that
+myfun can return to finish executing this code.
+
+    lpc r3,myfun_add
+    call r4,r3
+
+When myfun returns it returns here and, since we are done with the
+call to myfun we can restore whatever we had saved on the
+stack, in this case r4 was the only item.
+
+    pop r4
+
+Main is finished we want to return a zero, we know from the calling
+convention that the return value is stored in r10, and we know
+that you return from the function by branching to the address in r4.
+
+    ; return(0);
+    llz r10,#0
+    b r4
+
+; }
+
+We have implemented our first real C functinon in assembly language!
+
+Now lets get into myfun, which, due to the recursion may sound scary,
+but, just follow the calling convention, implement the C code in
+assembly language directly and you will see that it was really easy
+and not complicated or scary at all.
+
+The label myfun is our entry point into this function
+
+; void myfun ( unsigned short ra )
+; {
+myfun:
+
+We know from the calling convention that the first parameter in the
+function (ra) is passed in register r10 and we know from C programming
+this is passed in by value not by address so r10 holds the value
+for the C variable ra.
+
+We want to start by checking to see if ra<3, we want to call myfun
+if ra<3 and basically want to skip to the printf if ra>=3.  If if ra>=3
+skip to the printf.  Remember that the carry bit can be used with
+a sub or cmp instruction to detect unsigned greater than or equal.
+
+    ; if(ra<3)
+    llz r11,#3
+    cmp r10,r11
+    bc myfun_one
+
+If we did not branch that means ra<3 and we need to call myfun(ra+1).
+We are going to need to save r4 so that we can return from this function
+
+    ;     myfun(ra+1)
+    push r4
+
+Now as a human C compiler we look ahead in the function and see that
+the variable ra is going to be used again after the function call
+we are about to make so we need to make sure it does not get lost
+or modified by the function we are calling.  At the moment ra is in
+register r10 and we know from the calling convention that we have two
+problems, first functions can modify r10 - r13 at will so we have to
+get it out of r10 and keep it somewhere.  Also the function we are
+calling needs a parameter and that parameter uses r10 so we need to
+get ra out of r10 and save it somewhere that will survive a function
+call.  That is what the stack is for.
+
+    push r10
+
+Now ra is safe.  The function call myfun(ra+1) needs to do some math
+on ra and then the calling convention says to put that value in r10.
+Well, a copy of ra is already in r10 and adding one to r10 is a simple
+increment.
+
+    inc r10,r10
+
+So our return value is safe, the ra that was passed to us is safe, the
+parameter to the function is ready, it is time to call the function.
+
+    lpc r3,myfun_add
+    call r4,r3
+
+When this call to myfun returns it returns here, the first instruction
+after the call.  We need to clean up after this function call and
+restore registers that we used to make the function call.
+
+    pop r10
+    pop r4
+
+Now we are just about ready to implement printf.  We could have
+reached this point in the code in one of two ways, one was when
+ra>=3 and we branched here, the other was after a call to myfun and
+we simply continued to execute to this point.  We will put the label
+we need for the ra>=3 branch, and then implement printf.
+
+myfun_one:
+
+No we do not have a C library with a full implementation of printf, the
+example is cheating a bit knowing that we have a way using the simulator
+to show the contents of a register.  That simulator feature is to
+store the register to address 0xFF00.
+
+
+We chose to just leave ra in the register r10 since it was easy to do
+using the stack.  The calling convention says that we can use r10 - r13
+without having to preserve everything, we happen to be using r10 for ra
+so r11 is not a bad choice to use for the address 0xFF00.
+
+    ; printf("0x%04X\n",ra);
+    lhz r11,#0xFF
+    stw [r11],r10
+
+Being human C compilers we see that ra is no longer needed or used
+by the function, so we can discard it or free up any resources that
+we had used to save it.  The only resource we alloced was the one
+that had already been allocated for it, r10, we dont have any rules
+about having to preserve or free up r10 so we have nothing to do here
+to clean up the C function.
+
+End of the myfun function, time to return we know for this convention
+that is a b r4 instruction.
+
+    b r4
+
+The last bit of code is just a couple of internal variables.  We know
+that lsa-as will compute the addresses for us if we use the
+=label_name format.
+
+main_add: .word =main
+myfun_add: .word =myfun
+
+
+So we implemented the C program directly.  To understand the output
+we focus on what the C program does and not have to focus on the
+assembly.
+
+main calls myfun(0);
+
+we enter myfun with ra = 0.
+
+ra = 0 is less than 3 so call myfun(ra+1)
+
+we enter myfun with ra = 1
+
+ra = 1 is less than 3 so call myfun(ra+1)
+
+we enter myfun with ra = 2
+
+ra = 2 is less than 3 so call myfun(ra+1)
+
+we enter myfun with ra = 3
+
+ra = 3 is not less than 3 so we skip the myfun call and go
+to the printf
+
+we printf 0x0003
+
+the myfun call with ra = 3 is done we return
+
+this returns to the myfun call with ra = 2 at the printf point.
+
+we printf 0x0002
+
+the myfun call with ra = 2 is done we return
+
+this returns to the myfun call with ra = 1 at the printf point.
+
+we printf 0x0001
+
+the myfun call with ra = 1 is done we return
+
+this returns to the myfun call with ra = 0 at the printf point.
+
+we printf 0x0000
+
+the myfun call with ra = 1 is done we return
+
+this returns to main at the return(0) point.
+
+main returns and the program is finished.
+
+
+---------------------------------------------------------------------
+Lesson 26:  Same C code but new calling convention
+
+---- lesson26 ----
+    b lesson26
+    b lesson26
+lesson26:
+    lhz r2,#0x10
+
+    lpc r3,main_add
+    llz r4,#2
+    add r4,r0
+    push r4 ; pc+0
+    b r3    ; pc+1
+            ; pc+2
+    halt
+
+myfun:
+    lsp r10,#1
+    llz r11,#3
+    cmp r10,r11
+    bc myfun_one
+
+    inc r10,r10
+    push r10
+    lpc r3,myfun_add
+    llz r4,#2
+    add r4,r0
+    push r4
+    b r3
+    inc r2,r2
+
+myfun_one:
+    lsp r10,#1
+    lhz r11,#0xFF
+    stw [r11],r10
+    pop r3
+    b r3
+
+main:
+    llz r10,#0
+    push r10
+    lpc r3,myfun_add
+    llz r4,#2
+    add r4,r0
+    push r4
+    b r3
+    inc r2,r2
+
+    llz r10,#0
+    pop r3
+    b r3
+
+main_add: .word =main
+myfun_add: .word =myfun
+
+---- lesson26 ----
+
+You should see:
+
+show: 0x0003
+show: 0x0002
+show: 0x0001
+show: 0x0000
+
+What does this program do?
+
+Using the same C code as before, we as the human C compilers are going
+to compile this code again.  But we are going to use a different
+calling convention.  The last time we used a register based calling
+convention.  The lsa architecture is very much register based so
+it is a natural fit.  But some other processors are heavily geared
+toward a stack based calling convention.  And some processors it
+doesnt matter you can go either way.
+
+The lsa processor has the call function which uses a register to store
+the return value, implying that you want to use a register for your
+return value in your calling convention.  Some processors instead
+put the return value on the stack for you instead of a register implying
+for those architectures that you want to at least use a stack
+based return address scheme.
+
+We are going to try to use the lsa processor but use a stack based
+calling convention:
+
+Register r3,r4 are reserved for performing calls as you will see.
+R10-r13 can be used by the function without having to preserve the contents
+of the register before returning from the function.
+The last thing on the stack when you enter a function is the return
+value, that is stack pointer + 0 is the return value.
+Stack pointer + 1 is the first passed in parameter
+Stack pointer + 2 is the second passed in parameter, and so on.
+Stack pointer + 1 is used for the return value.
+The calling function prepares the stack before calling the function.
+The function leaves the number of items on the stack with the exception
+that the function pops the return value (leaving the parameters on the
+stack).  The calling function cleans up the stack to the state it was
+before the call.
+
+So here is our C program again.
+
+void myfun ( unsigned short ra )
+{
+    if(ra<3)
+        myfun(ra+1);
+    printf("0x%04X\n",ra);
+}
+unsigned short main ( void )
+{
+    myfun(0);
+    return(0);
+}
+
+To really use the stack for calling functions takes a little bit of
+care (with this processor), here is what we are going to do, r3 will
+get the address of the function.  We set up the stack according to the
+convention and an unconditional branch will serve to call the function.
+We have to figure out what the return address is so that we can push it
+onto the stack.
+
+Here is a skeleton of the code used any time a function is called
+using this calling convention.
+
+    ;setup last parameter and push it
+    ;setup next to last parameter and push it
+    ...
+    ;setup second parameter and push it
+    ;setup first parameter and push it
+    lpc r3,main_add ; r3 gets address of the function
+    llz r4,#2 ; r4 is going to hold are return address temporarily
+    add r4,r0 ; our return address is pc based
+    push r4   ; pc+0
+    b r3      ; pc+1
+              ; pc+2
+
+From the time we add r4,r0 through to b r3 we cannot mess around.  The
+add uses the program counter and those few lines of code are carefully
+crafted so that we can use the program counter in the add instruction
+to figure out what the return address is after the b r3 instruction.
+
+We do that by visualizing what the instruction address is after the
+b r3 instruction relative to the add instruction.  The comments on the
+side, pc+0, etc are relative to the add instruction and show us that
+if we add two to the pc in the add instruction that will give us the
+address to the instruction after the b r3, essentially after the call
+to the function.  That is how we figured out that we needed to pre-load
+r4 with a 2 to make this all work.
+
+That was the hard part.  It gets really easy from here on out.  For
+starters when someone calls your function, the parameters for that
+instance of the function are on the stack in a known place relative
+to the stack pointer.
+
+sp+N  last parameter
+sp+N-1 next to last parameter
+...
+sp+2 second parameter
+sp+1 first parameter
+sp+0 return address
+
+In the case of myfun, ra will be at sp+1 each time we call it, and
+sp+0 is the return address.
+
+We know how to reach sp+1 with an lsp rd,#1 instruction which we
+can do at anytime in this call to myfun (so long as we keep track
+of our stack usage within myfun).  By having these items on the
+stack when we call another function (like the recursive call to myfun)
+we dont have to wrap that call to myfun with pushes and pops to
+save ra and the return address, they are already safe.
+
+The call to myfun has a stack that looks like this
+
+sp+1 0x0000, ra from the myfun(0) call
+sp+0 return address to get back to main
+
+When we call myfun(0+1) from within the myfun(0) call the stack now
+looks like this
+
+sp+3 0x0000, ra from the myfun(0) call
+sp+2 return address to get back to main
+sp+1 0x0001, ra from the myfun(1) call
+sp+0 return address to get back to myfun(0)
+
+And when myfun(1) calls myfun(2)
+
+sp+5 0x0000, ra from the myfun(0) call
+sp+4 return address to get back to main
+sp+3 0x0001, ra from the myfun(1) call
+sp+2 return address to get back to myfun(0)
+sp+1 0x0002, ra from the myfun(2) call
+sp+0 return address to get back to myfun(1)
+
+and so on.
+
+Notice the inc r2,r2 after all of the calls to myfun()?  Remember the
+calling convention says the callee will remove the return address
+but the caller has to remove/clean up the rest of the stack (the passed
+in parameters) so before we have completed a call to myfun we have
+to remove the passed in parameter from the stack.  Since we no longer
+need that value (and pass by value in C also means the C function is
+allowed to mess up that copy of the passed value, so that stack location
+does not necessarily have what we wrote before the call) we can use
+an inc to remove it from the stack by putting r2 back where it was
+before we started preparing for this call.
+
+Another great benefit to using a stack based calling convention is
+that we can have a lot of parameters.  With register based we are
+limited by the number of registers that we can spare.  The prior
+example didnt say it directly, but it implied we were limited to only
+four parameters for a function.  What often happens is that register
+based is faster because registers are faster than memory (generally),
+but you have a limited number.  Depending on the total number of
+registers in the processor you may have a rule that says the first X
+number of parameters are passed in on these registers and parameters X+1
+on are passed in on the stack.  And that way you can balance performance
+and still meet the minimum number of passed parameter rules for the
+programming language if any.
+
+You are now experienced enough that with the explanation of how to
+make stack based calls, you can read through this example program and
+understand how it implements the C code directly.
+
+Normally you would not want to use the lsa processor this way, this was
+for educational purposes.  What you might want to do though is take
+advantage of the call instruction giving you a register based return
+address, but use the stack for parameters.
+
+---------------------------------------------------------------------
+
+That is all...I declare you an assembly language programmer.  Hopefully
+you didnt just blaze through this without taking time to play around
+and understand each lesson.  Now would be a good time to either go
+back and do that or take what you know and move forward and write useful
+and interesting programs.
+
+Take some time if you can and see what else this lsa processor package
+has to offer, it offers much more than just teaching assembly language.
+
+Experiencing assembly for the first time (if this was your first time)
+with a somewhat straight forward and simple architecture like this you
+can take that knowledge and add to it by learning assembly language
+for other processors.  The concepts are the same, loading, storing,
+some sort of program counter, usually a stack, etc.  But the syntax
+is usually different.
+
+Other processors likely will take the things you used here in multiple
+instructions or steps and combine them into one instruction.  For
+example an alu instruction with immediate values
+
+    add r7,#0x12     ; r7 = r7 + 0x12
+
+Or three register/parameter instructions
+
+    add r7,r8,r9     ; r7 = r8 + r9
+    add r7,r8,#0x12  ; r7 = r8 + 0x12
+
+Lots of cool things but lots more to remember and learn how to use.
+
+A few recommended architectures:
+
+-The msp430 from Texas Instruments
+-The thumb instruction set which is the 16 bit subset of the ARM
+instruction set supported by some/many ARM processors.  Note there
+is also a thumb2 instruction set, which as of this writing is on a
+very limited number of ARM cores.  Not talking about thumb2 just thumb,
+thumb2 takes thumb to a whole new, complicated, level.
+-The ARM instruction set, the grandfather of the ARM instruction sets
+has three register stuff, etc.  Very nice and clean and feature rich.
+-The MIPS family.  The dlx derivative is also a teaching instruction set
+created by the mips designers.
+
+-For fun but not necessarily practical the 6502 instruction set and
+the pdp11 instruction set.
+
+The last instruction set you want to learn is x86.  Most of the world
+may revolve around it but that is through momentum and not necessarily
+a great design or history.  It is one of the harder to learn and master
+and because of the long history and tweaks, microcoded cores, multiple
+x86 chip vendors, etc, no two x86 cores perform the same way.  They all
+execute x86 instructions in some fashion (one generation building on the
+prior) but if you want to use asm to hand tune for performance you will
+find that nicely tuned asm on one particular x86 core runs really slow
+on another and vice versa.  You want your x86 asm code to be somewhat
+generic and not overly optimized for one core so that it runs good
+enough on all of the cores.  Or at least be aware that tuning for a core
+takes a learning curve to understand that specific core, you can
+make your code faster for that core, but your tuned code is limited to
+performing on that core/family which may be fine for the hardware
+you are developing this code for.
+
+So long as our laptops and desktops and servers continue to be
+dominated by x86 processors it is worth learning enough to be able to
+read x86 assembler so that you can inspect what your C compiler is
+really doing when it compiles and optimizes your code.  Be able to
+debug your code at that level to find if the C compiler is doing
+something that you didnt realize the C language permitted or perhaps
+you forgot to declare a variable volatile or something like that and
+the C compiler re-arranged your code.
+
+If you are like me diving into x86 was a failure, backing up and learning
+a cleaner, digestible, instruction set first will allow you to understand
+and use the x86 instruction set (if you feel you really need to).  After
+failing on my own to learn x86 I took a pdp11 assembly language class
+(no I am not THAT old, the class used computers that were antiques at
+the time), and then was able to easily learn x86 assembler.  This
+portion of the lsa project is specifically to pass it on.  You are likely
+not going to find a DEC Pro 350 laying around in working order with
+working floppy disks with working software you can use to write programs.
+You can get an msp430, which is a good teaching instruction set for less
+than $5, but you are likely afraid to try to figure out how to use it
+and probably didnt know it would be better to learn on something other
+than your desktop/laptop processor.  In a simulation environment like
+this one you can, ideally, see everything going on and have no fear of
+mistakes, you are not going to trash your hard drive, blow up your
+video card or monitor.  Etc.

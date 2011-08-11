@@ -1,0 +1,59 @@
+
+//cdl --model csram --cpp csram.cpp csram.cdl
+
+extern module csram
+(
+    input   bit[1]  in_output_enable,
+    input   bit[1]  in_write_enable,
+    input   bit[16] in_address,
+    input   bit[16] in_data,
+    output  bit[16] out_data,
+    output  bit[16] out_uart
+)
+{
+    timing comb input in_output_enable;
+    timing comb input in_write_enable;
+    timing comb input in_address;
+    timing comb input in_data;
+    timing comb output out_data;
+    timing comb output out_uart;
+}
+
+module csram
+(
+    input   bit[1]  in_output_enable,
+    input   bit[1]  in_write_enable,
+    input   bit[16] in_address,
+    input   bit[16] in_data,
+    output  bit[16] out_data,
+    output  bit[16] out_uart
+)
+{
+
+    sram_code:
+    {
+        out_data = 16hFFFF;
+        out_uart = 0;
+            if(in_output_enable==1b1)
+            {
+                full_switch(in_address)
+                {
+                    default: { out_data = 0xFFFF; }
+                    case 16hFC00: { out_data = 0x430E; }
+                    case 16hFC02: { out_data = 0x422F; }
+                    case 16hFC04: { out_data = 0x831F; }
+                    case 16hFC06: { out_data = 0x23FE; }
+                    case 16hFC08: { out_data = 0x531E; }
+                    case 16hFC0A: { out_data = 0x108E; }
+                    case 16hFC0C: { out_data = 0x3FFA; }
+                    case 16hFFFE: { out_data = 0xFC00; }
+                }
+            }
+            if(in_write_enable==1b1)
+            {
+                out_data = in_data;
+                out_uart = in_data;
+            }
+    }
+}
+

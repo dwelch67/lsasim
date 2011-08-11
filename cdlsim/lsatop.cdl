@@ -1,0 +1,84 @@
+
+extern module csram
+(
+    input   bit[1]  in_output_enable,
+    input   bit[1]  in_write_enable,
+    input   bit[16] in_address,
+    input   bit[16] in_data,
+    output  bit[16] out_data,
+    output  bit[16] out_uart
+)
+{
+    timing comb input in_output_enable;
+    timing comb input in_write_enable;
+    timing comb input in_address;
+    timing comb input in_data;
+    timing comb output out_data;
+    timing comb output out_uart;
+}
+
+extern module lsa_core
+(
+    clock          clock_in,
+    input  bit     reset_in,
+
+    input  bit[16] mem_in,
+    output bit[16] mem_out,
+    output bit[16] mem_add,
+    output bit[1]  mem_oe,
+    output bit[1]  mem_we,
+    output bit[1]  mem_fetch
+)
+{
+    timing to rising clock clock_in reset_in;
+    timing to rising clock clock_in mem_in;
+    timing from rising clock clock_in mem_out;
+    timing from rising clock clock_in mem_add;
+    timing from rising clock clock_in mem_oe;
+    timing from rising clock clock_in mem_we;
+    timing from rising clock clock_in mem_fetch;
+}
+
+module lsatop
+(
+    clock          in_clock,
+    input  bit     in_reset
+)
+{
+    default clock in_clock ;
+    default reset active_high in_reset ;
+
+    comb bit[16] uart_out;
+    net  bit[16] net_uart_out;
+
+    net bit net_output_enable;
+    net bit net_write_enable;
+    net bit[16] net_address;
+    net bit[16] net_in_data;
+    net bit[16] net_out_data;
+
+    msptop_code:
+    {
+        csram mem
+        (
+            in_output_enable    <= net_output_enable,
+            in_write_enable     <= net_write_enable,
+            in_address          <= net_address,
+            in_data             <= net_in_data,
+            out_data            => net_out_data,
+            out_uart            => net_uart_out
+        );
+        lsa_core lsa_core0
+        (
+            clock_in <- in_clock,
+            reset_in <= in_reset,
+
+            mem_in <= net_out_data,
+            mem_oe => net_output_enable,
+            mem_we => net_write_enable,
+            mem_add => net_address,
+            mem_out => net_in_data
+        );
+        uart_out = net_uart_out;
+    }
+}

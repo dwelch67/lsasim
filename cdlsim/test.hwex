@@ -1,0 +1,19 @@
+
+module lsatop lsatop0
+
+option_string "clock" system_clock
+option_string "filename" test.th
+module se_test_harness test_harness_0
+
+clock system_clock 10 1 1
+
+wire test_reset
+
+assign test_reset 1 20 0
+
+drive test_harness_0.system_clock system_clock
+drive lsatop0.in_clock system_clock
+drive lsatop0.in_reset test_reset
+
+end
+
