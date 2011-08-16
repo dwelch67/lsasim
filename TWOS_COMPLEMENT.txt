@@ -1,392 +1,409 @@
 
-TODO: go into greater detail about twos complement numbers.
+Using 0x10 in this document means hex notation, the hex number 0x10
+which is 16 decimal.  0b10 means binary the number 0x10 is the
+number 2 decimal.  If there is no 0x or 0b then the number is assumed
+to be decimal.
 
-To make life simple lets think about a 4 bit system, basically when we
-count or do math or whatever we are limited to 4 bits.  The bits
-themselves, and sometimes the hardware, does not care what the bits
-represent.  Their meaning is usually interpreted by the user or at times
-when those bits are operated on by an alu or control or status register,
-etc.  While those bits sit in our general purpose registers in a processor
-or in memory, they are just bits, ones and zeros.  When we decide that
-those bits represent a number, an value, a quantity, we need to choose
-if we want those bits to be unsigned or signed.
+To make life simple lets think about a 4 bit system, for the purpose
+of this discussion everything is 4 bits, no more, no less.
 
-Here is why, 4 bits allows for 2 to the power 4 number of combinations,
-which is 16 combinations.  If we interpret the bit patterns as an
-unsigned number we would normally use a base 2 counting system:
+A big problem folks have coming down from higher level languages is
+the concept that bits is bits.  Sometimes the bits are an address,
+sometimes they are data, sometimes when those bits are written to
+a control register they have individual meaning, etc.  But for the
+most part, to the memory and the registers and to some extent other
+parts of the processor they are just bits.  The processor will keep
+track of them and move them about per your instructions, but often
+they have little or no meaning until you specifically say use these
+bits as numbers and perform a math operation.  But then you may turn
+around and what was numbers in a math operation is all of the sudden
+an address in memory.
 
-0000 0
-0001 1
-0010 2
-0011 3
-0100 4
-0101 5
-0110 6
-0111 7
-1000 8
-1001 9
-1010 10
-1011 11
-1100 12
-1101 13
-1110 14
-1111 15
+Lets dive right into twos complement.  What is twos complement?  It
+is basically a way to interpret bit patterns as positive and negative
+numbers.  We know from early childhood to the present base ten numbers,
+decimal.  Base ten, there are ten symbols.  Where the symbols are
+relative to others defines what they mean.  The one on the right
+might mean ones, the symbol to the left of that might represent tens
+and hundreds and so on (10 to the power 0 = ones, 10 to the power 1,
+tens, ten to the power 2, hundreds, etc).  Well other bases work the
+same way, base 2, binary, two symbols, when you get from 0 to 1 then
+thats it you have to use the twos column then the fours column, etc.
 
-And that is fine, but sometimes we want to have negative numbers we dont
-have an extra bit to indicate positive or negative, that would be a 5
-bit register.  We could use one of the bits in our register to indicate
-the sign.  This would be called something like sign+magnitude notation.
+With the decimal system, when we write things down by hand we use
+a sign + magnitude notation.  +5 or -27 or 13, if there is no + or
+- we tend to know that implies positive or a plus sign.  Well we
+could use another bit in decimal to indicate positive and negative
+and use a sign+magnitude system, but we do not.
 
-0000 +0
-0001 +1
-0010 +2
-0011 +3
-0100 +4
-0101 +5
-0110 +6
-0111 +7
-1000 -0
-1001 -1
-1010 -2
-1011 -3
-1100 -4
-1101 -5
-1110 -6
-1111 -7
+Let's look at the beauty of twos complement then perhaps understand
+why sign+magnitude is not that attractive.
 
-One bit is the sign bit, in this case 0 is positive and 1 is negative,
-the other bits are an unsigned magnitude.  The first problem we have
-with this is that there are two patterns for zero, which is probably
-fine, the second is how much logic it will take to perform math on these
-numbers.  Addition and subtraction in particular.  Multiply might
-be easer, but add and sub are more fundamental functions and used more
-often (in programming).
+So using positive numbers and normal counting that we learned base
+10 but applied to base 2.  And also limiting this discussion to
+4 bits we have all the positive numbers we are able to represent:
 
-Here is what twos complement looks like, just to toss it out there and
-then we can discuss it.  The first column is the bit pattern in our 4
-bit register/memory.  The second column is what that pattern means if
-we consider it an unsigned number, the third is if we consider it a
-signed number using sign+magnitude, the third column is twos complement.
+0b0000 0
+0b0001 1
+0b0010 2
+0b0011 3
+0b0100 4
+0b0101 5
+0b0110 6
+0b0111 7
+0b1000 8
+0b1001 9
+0b1010 10
+0b1011 11
+0b1100 12
+0b1101 13
+0b1110 14
+0b1111 15
 
-0000 0  +0 +0
-0001 1  +1 +1
-0010 2  +2 +2
-0011 3  +3 +3
-0100 4  +4 +4
-0101 5  +5 +5
-0110 6  +6 +6
-0111 7  +7 +7
-1000 8  -0 -8
-1001 9  -1 -7
-1010 10 -2 -6
-1011 11 -3 -5
-1100 12 -4 -4
-1101 13 -5 -3
-1110 14 -6 -2
-1111 15 -7 -1
+Remember this is just one representation of thes bit patterns, this
+is an unsigned set of patterns for lack of a better term.  But we
+at some point need to subtract things or do other math that results
+in negative numbers.  So we have to get a pattern set that allows
+for positive and negative numbers.
 
-It may make more sense viewed like this starting with -8 and counting up
-through +7.
+Just throwing this out there, then we will discuss it after, this
+is the same bit patterns with both the decimal unsigned value as well
+as the twos complement signed value for that pattern:
 
-1000 8  -0 -8
-1001 9  -1 -7
-1010 10 -2 -6
-1011 11 -3 -5
-1100 12 -4 -4
-1101 13 -5 -3
-1110 14 -6 -2
-1111 15 -7 -1
-0000 0  +0 +0
-0001 1  +1 +1
-0010 2  +2 +2
-0011 3  +3 +3
-0100 4  +4 +4
-0101 5  +5 +5
-0110 6  +6 +6
-0111 7  +7 +7
+0b0000 0  +0
+0b0001 1  +1
+0b0010 2  +2
+0b0011 3  +3
+0b0100 4  +4
+0b0101 5  +5
+0b0110 6  +6
+0b0111 7  +7
+0b1000 8  -8
+0b1001 9  -7
+0b1010 10 -6
+0b1011 11 -5
+0b1100 12 -4
+0b1101 13 -3
+0b1110 14 -2
+0b1111 15 -1
 
-So we got rid of the minus zero that sign+magnitude had and gained another
-number but we are now unbalanced there is a -8 but no +8.
+That order makes sense for unsigned, for signed this makes a little
+more sense, with zero in the middle, one way increasing negative
+the other increasing positive:
 
-Now why would you do something like that?  As mentioned above addition
-and subtraction are a good reason.  Lets look at that.
+0b1000 8  -8
+0b1001 9  -7
+0b1010 10 -6
+0b1011 11 -5
+0b1100 12 -4
+0b1101 13 -3
+0b1110 14 -2
+0b1111 15 -1
+0b0000 0  +0
+0b0001 1  +1
+0b0010 2  +2
+0b0011 3  +3
+0b0100 4  +4
+0b0101 5  +5
+0b0110 6  +6
+0b0111 7  +7
 
-If we were to say add 2 + 4 = 6 using sign+magnitude we would need
-to start by going back to our grade school days.  We did not learn
-about negative numbers for a while, nor subtraction, so we can do this
-one pretty easy.
+Right away we notice a few things.  First the positive numbers and
+zero have a 0 as the most significant (leftmost) bit and negative
+numbers have a 1 as the most significant bit.  That is a quick way to
+tell positive and negative numbers apart.  That can be a good thing.
 
-  010
-+ 100
+We do not have a positive and negative zero, that is a good thing with
+our decimal numbers who is to say you cannot put a minus sign in front
+of a zero?   5 - 0 isnt that the same as saying 5 + (-0)?   If we had
+used sign + magnitude for binary we would have a plus and minus zero
+pattern.  What we get instead of a minus zero though is a minus eight,
+but no positive eight.
+
+Here is where twos complement shines.   Math, addition.
+
+Take the unsigned numbers 3 + 12 = 15, 0b0011 + 0b1100 = 0b1111.
+If you look those patterns up in the table you see the 3 + 12 = 15 but
+you also see 3 + (-4) = -1.  That is pretty cool.  And it works for
+other numbers too.  If we think about the idea that we are limiting
+ourselves to four bits only  (-3) + (-5) = 0b1101 + 0b1011  well that
+would normally equal 0b11000, when we clip that to four bits 0b1000
+that shows -8 and that works for the signed interpretation.  For the
+unsigned interpretation  11 + 13 = 24, we cannot perform math like that
+on the unsigned side of our number system.  Just like we cannot perform
+1 - 12 = -11 in our number system our operators and answers have to be
+one of the numbers in the system.  This is one reason why computers
+have gone from 8 to 16 to 32 and now 64 bit and on.  And there are
+ways to use an 8 bit system and do 64 bit math but that is another
+discussion.  Just like doing decimal math on paper, if you did not
+limit yourself to a certain number of bits you could perform any
+unsigned or signed (twos complement) math.  Note sometimes folks will
+call the unsigned stuff ones complement.  We will see that term again
+used a different way.  The terms unsigned and signed, or "interpreting
+these bits as unsigned" or "interpreting these bits as signed" make
+more sense.
+
+This twos complement thing sounds pretty cool, the math just seems to
+work (within the number of bits we are limited to).  Now how do we
+know what number we are looking at, how do we read and write twos
+complement numbers.  When limited to 16 patters a table works just
+fine but what about over 4 billion patterns in a 32 bit system?  A
+chart to look it up is not going to cut it.  In our sign+magnitude
+decimal world to change the sign of a number we just switch signs
+-4 becomes 4 or +4, and +7 becomes -7, easy.  To change sign in a
+twos complement world, you have to "invert and add one".  Some folks
+say "take the ones complement then add one".  Some may say subtract one
+and then take the ones complement.  Invert and add one is easy and
+very relevant to yet another feature of this numbering system.
+
+If you think about grade school addition, you would do things like
+this:
+
+  17
++  4
+====
+
+7 + 4 is 1 carry the 1
+
+  1
+  17
++  4
+====
+   1
+
+1 plus 1 is 2
+
+  1
+  17
++  4
+====
+  21
+
+Binary math works exactly the same way (as does any base system so
+long as you represent the numbers with unique symbols and have a base
+to the zero column the a base to the power 1 column and a base to the
+power 2 column and so on).  2 + 3 = 5 is:
+
+  0010
++ 0011
 ======
-  110
 
-That gives us a 6, we only know positive numbers by this point in our
-grade school education so the result is postive 0110.
+(note the 0b is not shown to make it more readable)
 
-Now what about 2 - 4 = -2?
+0 + 1 is 1
 
-Well in grade school we would first have to look and decide are we
-subtracting two positive numbers, two negative numbers, or one of each?
-If the signs were different then we would add the numbers, but since
-both are positive numbers (2 and 4) we need to perform the subtract.
-Next we decide which one is bigger?  Well the 4 is bigger so we actually
-have to perform a 4 - 2 then we have to sort out the sign bit for the
-result.
-
-  100
-- 010
-=====
-
-So 0 minus 0 is 0
-
-  100
-- 010
-=====
-    0
-
-0 minus 1 is a problem we have to borrow, just like grade school we
-do something that results in this:
-
-  020
-- 010
-=====
-    0
-
-2 minus 1 is 1
-
-  020
-- 010
-=====
-   10
-
-0 - 0 is 0
-
-  020
-- 010
-=====
-  010
-
-So we get the right magnitude, and by inspection we know the result is
-negative, the bigger number was the one being subracted from the
-positive number so that takes us past zero into negative numbers.
-
-This all sounds reasonable right?  Same as grade school just binary
-not decimal.
-
-Tell me how we know mathmetically that one number is greater than another?
-Memorization? That is not mathematically.  The best we can do is just
-try to subtract the magnitudes:  2 - 4 and 4 - 2 we should get one
-of three results, greater than, less than, or equal.  we have already
-performed a 4 - 2 and we know that the math worked and the answer was
-not a zero so they were not equal.  lets try the 2 - 4 and see what
-happens:
-
-
-  010
-- 100
-=====
-
-0 - 0 is 0 and 1 - 0 is 1
-
-  010
-- 100
-=====
-   10
-
-now we have a problem 0 - 1 means we need to borrow, but there is nothing
-to borrow from.  well that is how we would tell if we had choosen
-poorly, when you borrow off the end.
-
-So as to not drag this pain out any more, this sign+magnitude thing is
-sounding like a lot of work.  Our brains can handle this stuff easy,
-grade school stuff, but the work to do it digitally is not so trivial
-you have to decide if it is addition or subtraction, if subtraction you
-have to figure out which one is greater which involves some experimental
-subtractions, imagine how much work that is for a processor, how much
-electronics that would involve...We wouldnt be talking about twos
-complement if it didnt make life easier, we simply would not have that
-term in our programming vocabulary.  Lets go back to our pattern table
-(with sign+magnitude removed).
-
-0000 0  +0
-0001 1  +1
-0010 2  +2
-0011 3  +3
-0100 4  +4
-0101 5  +5
-0110 6  +6
-0111 7  +7
-1000 8  -8
-1001 9  -7
-1010 10 -6
-1011 11 -5
-1100 12 -4
-1101 13 -3
-1110 14 -2
-1111 15 -1
-
-Lets look at our 2 + 4 = 6 example the pattern 0010 + 0100 = 0110.
-Lets look at our 2 - 4 = -2 patterns 0010 + 1100 = 1110.  why did
-I put a plus?  Because I am adding a minus four, right?  2 - 4 =
-2 + (-4).
-And more importantly, what else do we know about that set of patterns
-0010 + 1100 = 1110?  isnt that also 2 + 12 = 14 in simple unsigned
-math?
-
-What if we try some others
-
-0011 + 1010 = 1101  3 + 10 = 13 and  3 - 6 = -3
-1010 + 0101 = 1111  10 + 5 = 15 and  -6 + 5 = -1
-
-If we remember that this is a 4 bit system and say we try to do
-something like 7 - 6
-
-  11
-  0111
-+ 1010
+  0010
++ 0011
 ======
- 10001
+     1
 
-We only have room for 4 bits so if we clip the answer to four bits we
-get 0001 so 7 - 6 = 1 is 0111 + 1010 = 0001.  That works too.
+1 + 1 is 0 carry the 1
 
-Basically, so long as you have room to store the answer it works.
+   1
+  0010
++ 0011
+======
+    01
 
-12 + 15 = 27 for example doesnt work we need five bits for 27.
-We would instead get 12 + 15 = 11.  But that is the nature of the
-beast, we cannot have a infinite number of bits and still wire up
-the logic.
+1 + 0 + 0 is 1 and 0 + 0 is 0
 
-So you begin to see that there might be something to this, maybe
-the hardware doesnt care about positive and negative numbers when
-adding them together it feeds bits in and gets bits out and only
-the human cares about whether the equation was 3 + 10 = 13 or 3 - 6 = -3.
+   1
+  0010
++ 0011
+======
+  0101
 
-Let's take a break and try to figure out how to read and create twos
-complement numbers.  When we are talking about decimal numbers and
-want to make something negative we just change the sign a negative +5
-is -5, the negative of -3 is +3.  With binary numbers we say "take
-the twos complement of".  It is not sign+magnitude so what is the
-secret?  It may not be obvious, you might see if we do this:
+2 + 3 = 5.  It works.
 
-0000 +0 1111 -1
-0001 +1 1110 -2
-0010 +2 1101 -3
-0011 +3 1100 -4
-0100 +4 1011 -5
-0101 +5 1010 -6
-0110 +6 1001 -7
-0111 +7 1000 -8
+We also already know that doing addition with negative numbers works
+as well  (-5) + 1 = -4
 
-What did that chart do?  Show inverted patterns next to each other, but
-notice the magnitude, the positive numbers go from magnitude 0 to 7 the
-negative 1 to 8.  That may trigger a thouhgt?
-
-Inverting the bits is also know as "taking the ones complement of"
-
-1111 is the ones complement of 0000 and vice versa.
-
-"Taking the twos complement of" means "take the ones complement of and
-add one"  Sometimes folks just say, "invert and add one".
-
-A -3 means take a positive 3, invert and add 1.  Start with a 0011
-invert to 1100 and add one 1101.  The add one is in an unsigned fashion.
-
-We can breifly touch on subtraction, but the CARRY_FLAGS.txt document
-attempts to explain more about what really happens in the logic.
-
-So far in this document it has really only been addition 3 - 4 is
-addition 3 + (-4), etc.  What about (-5) - 3 = -8?  Well the deal is
-that logic does not do subtraction.  It does addition.
-
-Think about 1 + 1
-
-    1
-  0001
+   11
+  1011
 + 0001
 ======
-  0010
+  1100
 
-We have a 1 + 1 is "zero carry the one" thing we learned in grade school
-except we only learned it for base 10.  When your operands add up to
-equal to or more than the base of the system you have to carry something
-over.  Same in binary 1 + 1 is 2, which is more than or the same as the
-base we leave something and carry something 0 carry the 1.
-
-Why do I mention this?  Well to compute (-5) - 3 the logic only uses
-addition, the logic doesnt know that one is negative and one is positive
-it doesnt care.  What it does know is that you told it to do a subtract
-instead of an add, so knowing it is a different operation it can switch
-in some different logic if need be.  Lets think through this, subtracting
-3 is the same as adding a -3  (-5) + (-3) = -8.  And how do we negate
-a 3?  Take the twos complement, invert and add one right?  Well the
-invert is trivial, you can do that on a bit by bit basis and not have
-to get other bits involved.  Adding is tricky though.  But there is
-something we already saw but maybe didnt think about.
-
-Looking back to the 1 + 1 = 2 example above, notice that for one of
-the columns we had to actually add 3 numbers not two?  For the logic
-to work, all the columns but the rightmost need to have the ability
-to add three things, and get a keep something and carry something result
-a column with 0 + 1 + 1 is 0 carry the one.  A column with 1 + 0 + 0 is
-1 carry a zero.  If we filled in that one plus one example we would get:
+Note something interesting here.  Now we are adding two numbers but
+there are times where we actually have to add three numbers.  Basically
+any column but the right most we need to have the ability to add
+three numbers.  And in fact the logic does it all the time.  To the
+logic it looks like this:
 
 
-  001
-  0001
+  011
+  1011
 + 0001
 ======
-  0010
+  1100
 
-Now, why should we treat that right most column special?  The trick is
-we shouldnt, for this addition we would have:
+1 + 1 is a 0 carry the 1 but also 1 + 0 is a 1 carry the 0.
 
-  0010
-  0001
+Here is another fact that is going to get important in a second,
+the ones column is not all that special it also has a bit up there and
+uses a three bit adder.
+
+  0110
+  1011
 + 0001
 ======
-  0010
+  1100
 
-So subtracting (-5) - 3 is the same as (-5) + (-3) and converting
-from +3 to -3 is inverting and adding one, so our equation is now
-1011 + 1100 + 1 right?  This is why we use a 3 bit adder on the
-ones column:
+Okay, well it is still special because before we start doing the
+addition we know that bit on the top of the ones column is a zero.
+But the bit on the top of the next column, the twos column, we dont
+know what that bit is until we start to do the math.  Before we start
+it looks like this:
+
+  xxx0
+  1011
++ 0001
+======
+  xxxx
+
+Where x represents something we have to compute.
+
+Why is this important?  Well because we so far have only talked about
+addition, what about subtraction?
+
+Back to decimal we cheated a bit when we thought about something like
+5 - 3 as being 5 + -3.  Using the addition stuff we learned above
+and looking up 5 and -3 in the table shows it all working.  Using
+addition, but what do you do when the two values are arbitrary, and
+the operation is a subtract.  Can you perform A - B not knowing what
+A or B is?  Well we just saw the trick that makes it work in the
+logic.  We as humans know that A - B is A + -B.  We know that in
+twos complement to take the negative of a number we invert and add one
+so A + -B is A + ~B + 1.  Logic can invert individual bits very easy
+adding, not so easy.  So the A + ~B is as trivial as A + B, negate
+the B bits before feeding them to the 4 bit wide adder.  But remember
+our carry row for addition:
+
+  xxx0
+  1011
++ 0001
+======
+  xxxx
+
+Hmm, what if for subtraction we took advantage of that ones column
+special bit?  We could add a one into the ones column by just changing
+that bit.  5 - 3 is 0b0101 - 0b0011 = 0b0101 + 0b1100 + 1
+
 
   xxx1
-  1011
+  0101
 + 1100
 ======
+  xxxx
 
-When we actually perform the math:
+Fill it in:
 
-  1111
-  1011
+ 11011
+  0101
 + 1100
 ======
+ 10010
+
+We have to clip that to four bits 0b0010 to fit in our system and
+that gives us 5 - 3 = 2.  It worked!  And you find that so long
+as your operands and results have values that fit within the bit
+limitation of your system you can do addition and subtraction re-using
+a four bit adder by doing simple manipulation (inversion) of 5
+of the input bits if the operation is a subtract, and not inverting
+them if the operation is addition.
+
+Now is all of this magic due to twos complement or does it just work
+no matter what and twos complement has nothing to do with it.  Well,
+without thinking it through you probably already know the answer right?
+Why would we ever invent or talk about at term called twos complement
+if as humans sign+magnitude worked equally well?  We would do what we
+have been doing with pencil and paper since time and memorial.
+
+Why can we do it with pencil and paper?  Our brains are significantly
+more complicated and powerful.
+
+Take the 2 - 4 for example.  In grade school we learned how to perform
+that.  First we see that it is a subraction, but we also have to check
+the signs of the numbers if the signs are the same and it is a subtract
+then we actually subtract.  If the signs of the numbers are different
+(-3 - 5) then we would actually have to do an add, not a subtract.
+The signs are the same so it is a subtract.  Now we know the next
+rule we have to subtract the smaller number from the larger number.
+How do we know smaller from larger?  Weeks of training in grade school
+taught us to quickly visualize this.  How do you teach a computer that?
+Well there are probably some tricks, just like in decimal you start on
+the left say 0b100 vs 0b011.  From the top down to the fours column both
+numbers have zeros, in the fours column one has a 1 the other has a 0
+so that number is larger, we could work some logic around this.
+Once we know what to subtract from what then we have to do the subtract
+and that gets us to borrowing.  Take the decimal 1000 - 1
+
   1000
+- 0001
+======
 
-Which is -8, the answer we were looking for.  So both subtraction
-and addition likes this twos complement thing.
+Basically you get this:
 
-So when the logic performs an add, it puts the operands into the adder
-unmodified, and that extra bit in the ones column is a 0.  For a subtract
-the first operand is unmodified, the second operand is inverted and that
-extra bit in the ones column is a 1.
+  099X
+- 0001
+======
+  0999
 
-Scaling up or down the number of bits doesnt change things, an 8 bit
-system the patterns go from 0 to 255 unsigned or -128 to + 127. A
-16 bit system the patterns go from 0 to 65535 unsigned or -32768 to
-+32767 signed.
+Where the X is a ten.
 
-So twos complement is a way of representing negative numbers using bit
-patterns.  Taking the twos complement of a number means to negate the
-number, find its negative version turn 3 into -3 or -5 into 5.  You
-may have noticed that the most significant bit, indicates the sign of
-the number.  Positive numbers and zero the upper bit is a 0, negative
-numbers the upper bit is a 1.
+If we were to subtract 8 - 1 in binary it would look the same but
+be base 2:
 
-For more of this kind of thing and in particular to understand the
-carry flag or more specific the unsigned and signed overflow nature
-of those flags read the CARRY_FLAGS.txt document.
+  1000
+- 0001
+======
 
+with borrowing
+
+  0112
+- 0001
+======
+  0111
+
+8 - 1 = 7.
+
+Arguably we could do all of this in logic.  If the operation is an
+add or subtract, look at the sign bits of the two operands if they
+are the same and it is an add then perform an add and keep the
+sign bit the same.  If the operands are different then it is a subtract
+figure out which is the bigger of the two operands and subtract the
+smaller from the bigger, and we could figure out on a per column
+basis how to do the subtract, the borrowing would be tricky but
+doable.
+
+The reality is when this was all being figured out twos complement
+uses a lot less logic, is faster, etc.  And at the time anything
+you could do to save on logic was important.  Twos complement numbers
+are what computers use.
+
+We have had this discussion using four bit quantities.  It does not
+matter 4 bits to 40, 27 bits, 32, bits etc.  It all works.  More
+bits gives you more valid numbers to work with, you cannot do 1 - 15
+with a four bit system but you could with a five bit system (4 bit
+is 0 to 15 or +7 to -8, a 5 bit system is 0 to 31 or +15 to -16).
+
+
+So what we have learned:
+
+- the same bit patterns can be interpreted as unsigned or signed numbers,
+addresses, etc
+- addition and subtraction do not care about whether the operands are
+positive or negative, the math works out. (this is why you do not see
+an add unsigned or add signed and subtract unsigned or signed, but you
+do see different multiply signed or unsigned, that is a different
+discussion, possibly handled in the CARRY_FLAG.tx document).
+- the logic does care about whether the operation is add or subtract,
+some of the bits are flipped on their way to the adder depending on the
+operation.
+- for twos complement signed numbers the msbit indicates negative numbers
+from positive numbers
+- a zero is all zeros a minus one is all ones.
+- there is only one zero, you dont have a +0 and -0
+- with signed numbers 0 is considered a positive number and there is
+one more negative (non-zero) number than there are positive, your range
+is in the form x to -(x+1) (7 to -8, 15 to -16, 32767 to -32768, etc).
