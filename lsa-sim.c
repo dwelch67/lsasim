@@ -336,12 +336,12 @@ int lsa_sim ( void )
                         {
                             case 0x6:
                                 opa=0;
-                                opb=-(read_register((inst>>4)&0xF));
+                                opb=read_register((inst>>4)&0xF);
                                 break;
                             case 0x8:
                             case 0x9:
-                                opb=1;
                                 opa=read_register((inst>>4)&0xF);
+                                opb=1;
                                 break;
                             default:
                                 opa=read_register((inst>>8)&0xF);
@@ -350,34 +350,33 @@ int lsa_sim ( void )
                         }
                         switch(inst&0xF)
                         {
-                            case 0x0: res = opa + opb;    break;  //add
-                            case 0x1: res = opa - opb;    break;  //sub
-                            case 0x2: res = opa & opb;    break;  //and
-                            case 0x3: res = opa & (~opb); break;  //dna
-                            case 0x4: res = opa | opb;    break;  //or
-                            case 0x5: res = opa ^ opb;    break;  //xor
-                            case 0x6: res = opa - opb;    break;  //neg
-                            case 0x7: res =     ~ opb;    break;  //not
-                            case 0x8: res = opa + opb;    break;  //inc
-                            case 0x9: res = opa - opb;    break;  //dec
-                            case 0xA: res = opa - opb;    break;  //cmp
-                            case 0xB: res = opa & opb;    break;  //tst
+                            case 0x0: res = opa + (( opb)&0xFFFF) + 0;  break;  //add
+                            case 0x1: res = opa + ((~opb)&0xFFFF) + 1;  break;  //sub
+                            case 0x2: res = opa & opb;                  break;  //and
+                            case 0x3: res = opa & (~opb);               break;  //dna
+                            case 0x4: res = opa | opb;                  break;  //or
+                            case 0x5: res = opa ^ opb;                  break;  //xor
+                            case 0x6: res = opa + ((~opb)&0xFFFF) + 1;  break;  //neg
+                            case 0x7: res =     ~ opb;                  break;  //not
+                            case 0x8: res = opa + (( opb)&0xFFFF) + 0;  break;  //inc
+                            case 0x9: res = opa + ((~opb)&0xFFFF) + 1;  break;  //dec
+                            case 0xA: res = opa + ((~opb)&0xFFFF) + 1;  break;  //cmp
+                            case 0xB: res = opa & opb;                  break;  //tst
                         }
                         switch(inst&0xF)
                         {
                             default: vres=0; break;
                             case 0x0: //add
                             case 0x8: //inc
-                                vres = (opa&0x7FFF) + (opb&0x7FFF);
+                                vres = (opa&0x7FFF) + (( opb)&0x7FFF) + 0;
                                 break;
                             case 0x1: //sub
                             case 0x6: //neg
                             case 0x9: //dec
                             case 0xA: //cmp
-                                vres = (opa&0x7FFF) + (-opb&0x7FFF);
+                                vres = (opa&0x7FFF) + ((~opb)&0x7FFF) + 1;
                                 break;
                         }
-
                         rega=read_register(1); //dont use rega until after the switch
                         if((res&0xFFFF)==0) rega|=ZBIT; else rega&=(~ZBIT);
                         if(res&0x8000)      rega|=NBIT; else rega&=(~NBIT);
@@ -386,16 +385,12 @@ int lsa_sim ( void )
                             case 0x0:
                             case 0x8:
                                 //add
-                                if(res&0x10000) rega|=CBIT; else rega&=(~CBIT);
-                                if((res^(vres<<1))&0x10000) rega|=VBIT;
-                                else rega&=(~VBIT);
-                                break;
                             case 0x1:
-                            case 0x6: //yep, you can overflow with -0x8000
+                            case 0x6:
                             case 0x9:
                             case 0xA:
                                 //sub
-                                if(res&0x10000) rega&=(~CBIT); else rega|=CBIT;
+                                if(res&0x10000) rega|=CBIT; else rega&=(~CBIT);
                                 if((res^(vres<<1))&0x10000) rega|=VBIT;
                                 else rega&=(~VBIT);
                                 break;

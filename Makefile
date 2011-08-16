@@ -12,7 +12,7 @@ lsa-diss : lsa-diss.c
 	$(CC) lsa-diss.c -o lsa-diss
 
 lsa-sim : lsa-sim.c
-	$(CC) lsa-sim.c -o lsa-sim
+	$(CC) -O2 lsa-sim.c -o lsa-sim
 
 clean : 
 	rm -f lsa-as
