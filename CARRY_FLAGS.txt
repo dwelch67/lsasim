@@ -1,3 +1,629 @@
 
-TODO: go into greater detail about adders and signed and unsigned
-carry flags.
+
+Using 0x10 in this document means hex notation, the hex number 0x10
+which is 16 decimal.  0b10 means binary the number 0x10 is the
+number 2 decimal.  If there is no 0x or 0b then the number is assumed
+to be decimal.
+
+The lsa instruction set document gives some insight into the answers
+this document wants to explain.  You can take thes on face value:
+
+0011 bc  (unsigned greater than or equal)
+0100 bnc (unsigned less than)
+1001 bsg signed greater or equal (n xor v) = 0
+1010 bsl signed less than        (n xor v) = 1
+
+Or follow along in an attempt to explain how the logic works for a
+binary system.
+
+
+Binary based computers use twos complement numbers, that is not a
+surprise, perhaps what features that gives may or may not be.  We need
+to work through addition and multiplication basics to understand how
+the unsigned overflow (carry bit) and signed overflow flags are useful.
+
+Some simple twos complement basics, in particular as they relate
+to addition and subtraction.  Limiting the discussion to a four bit
+system to keep our sanity, here are the bit combinations and what they
+represent in decimal.
+
+0b0000 0  +0
+0b0001 1  +1
+0b0010 2  +2
+0b0011 3  +3
+0b0100 4  +4
+0b0101 5  +5
+0b0110 6  +6
+0b0111 7  +7
+0b1000 8  -8
+0b1001 9  -7
+0b1010 10 -6
+0b1011 11 -5
+0b1100 12 -4
+0b1101 13 -3
+0b1110 14 -2
+0b1111 15 -1
+
+From our grade school days we know about this carry thing, when we
+learned to add simple numbers:
+
+  17
++  4
+====
+
+7 + 4 = 1 carry the 1
+
+  1
+  17
++  4
+====
+   1
+
+1 + 1 = 2
+
+  1
+  17
++  4
+====
+  21
+
+The same is true in a base 2 system, note that 0b is not used with
+these numbers, it clutters the drawing.  7 + 3
+
+  0111
++ 0011
+======
+
+1 + 1 is 0 carry the 1
+
+    1
+  0111
++ 0011
+======
+     0
+
+1 + 1 + 1 is 1 carry the 1
+
+   11
+  0111
++ 0011
+======
+    10
+
+1 + 1 is 0 carry the one and 1 + 0 + 0 is 1
+
+  111
+  0111
++ 0011
+======
+  1010
+
+7 + 3  = 10 = 0b0111 + 0b0011 = 0b1010
+
+When thinking about adding two numbers in binary the truth tables
+at first seem trivial.  Two inputs  two outputs (a, b), the result (r)
+and the carry (c)
+
+a b  c r
+0 0  0 0
+0 1  0 1
+1 0  0 1
+1 1  1 0
+
+The carry bit, c, is an .and. operation.  The result, r, is an .xor.
+operation.
+
+Easy right, wire up a few gates and you have an adder right?  Well,
+no.  The ones column that is fine, but the twos column needs a
+three input adder not a two input.  All but that ones column are going
+to need a three input adder
+
+i a b  c r
+0 0 0  0 0
+0 0 1  0 1
+0 1 0  0 1
+0 1 1  1 0
+1 0 0  0 1
+1 0 1  1 0
+1 1 0  1 0
+1 1 1  1 1
+
+The i column being this carry bit thing that we take from the prior
+column.  And yes it is easier to see it if you think of carrying
+both zeros and ones:
+
+  010
+  0011
++ 0010
+======
+  0101
+
+Because it makes sense to think of this as a three input adder.
+
+I guess you could think of this as if i then c = a .and. b else c =
+(.not. a) .and. (.not. b).  And if i then r = a .xor. b else r =
+(.not. a) .xor. (.not. b).  But for now lets follow this other path
+for a bit.
+
+A beautiful thing that comes from twos complement numbers is that
+you can use addition with both positive and negative numbers.  With
+decimal numbers we think in terms of sign + magnitude a +7 or -7.  We
+dont need a chart or need to do the invert and add one thing to figure
+out what a -7 looks like.  It is a positive 7 with the minus sign instead
+of a plus sign.  Likewise we can do things like 3 + (-5) without having
+to re-arrange it into a -(5 - 3) so that we dont have to have some
+borrow problem.
+
+In binary 3 + (-5)
+
+  011
+  0011
++ 1011
+======
+  1110
+
+3 + (-5) = -2
+
+Now here is the really cool part.  What if we used a three bit adder
+on the ones column?  It burns more logic but ride with it to see where
+this is headed.
+
+  0110
+  0011
++ 1011
+======
+  1110
+
+Basically for an add operation we know this going in:
+
+  xxx0
+  0011
++ 1011
+======
+  xxxx
+
+Where there is an x is something we have to compute.
+
+Now look at a subtract operation.  A - B  Twos complement makes it so
+the logic does not have to figure out the larger number and do the borrow
+thing.  Taking the "twos complement of a number" means taking the negative
+of a number.  We know from grade school A - B is the same as A + (-B)
+and we know from twos complement that -B means invert and add one
+so A + (-B) = A + (~B) + 1.  Putting some numbers to this 3 - 5 =
+0b0011 - 0b0101 = 0b0011 + (~0b0101) + 1 = 0b0011 + 0b1010 + 1 and
+that fits into our adder quite nicely:
+
+  xxx1
+  0011
++ 1010
+======
+
+Solving that becomes:
+
+  0111
+  0011
++ 1010
+======
+  1110
+
+Basically looking the adder:
+
+  eeef
+  gggg
++ hhhh
+======
+  jjjj
+
+eee and jjjj have to be computed, with either an .add. a + b or .sub.
+a - b.  gggg is the a operand unmodified.  f and hhhh are 0 and the b
+operand for an .add., for a .sub. we invert the 0 and b operand before
+feeding them in to f and hhhh.
+
+What does any of this have to do with overflow you ask?  We are closer
+than you think.
+
+We already looked at this truth table:
+
+i a b  c r
+0 0 0  0 0
+0 0 1  0 1
+0 1 0  0 1
+0 1 1  1 0
+1 0 0  0 1
+1 0 1  1 0
+1 1 0  1 0
+1 1 1  1 1
+
+It is our three input adder, with a carry bit and result bit as outputs.
+
+The c output is called "carry out".  It is the output of a single column
+in the adder.  But the carry output of one column is the "carry in" of
+the next column.  The input i is the carry in from the prior column.
+We can build an adder any size that we want, 4 bits, 400 bits, each
+column has two inputs, a carry in, a carry out and a result out.
+
+ wxyzf
+  gggg
++ hhhh
+======
+  jjjj
+
+z is the carry out of the ones column but at the same time it is the
+carry in of the twos column adder.  y is the carry out of the twos
+column, at the same time it is the carry in of the fours column.
+x is the carry out of the fours column and the carry in of the
+eights column.  w is the carry out of the eights column.
+
+To take a tangent for a moment, look at that adder, we just realized
+that a four bit adder is a series of one bit adders linked together
+with the carry out of one feeding into the next as its carry in.
+If we wanted to do an 8 bit addition in a 4 bit system and we were
+able somehow to save the carry out, and manipulate the carry in
+we could easily perform 8 or 12 or 16 or any sized addition
+we wanted.  In most processors you will see an .add. instruction
+which normally leaves the carry out in a carry flag in a status
+register.  In some processors there is an .adc. instruction, meaning
+add with carry.  Instead of f above being hardcoded as a 0 because
+this is addition the .adc. instruction instead uses the carry bit
+from the status regiser as the f, carry in, input to the four bit
+adder.  So if we wanted to add 0x123 and 0x456 we would:
+.add. 0x3 + 0x6
+.adc. 0x2 + 0x5
+.adc. 0x1 + 0x4
+The first .add. hardcodes f as a 0 because that is the real ones column.
+The w output of the .add. becomes the f input of the first .adc.  The
+w output of the first .adc. becomes the f input of the second .adc.
+and we are left with the w output of the second .adc. in the carry bit
+of the status register.  As if we had a 12 bit adder in a 4 bit system.
+
+What does the carry out bit really mean?  All we have to do is look
+at a single column, the three input .add. function, the carry out bit means
+that our result does not fit within a single bit (the 0b omitted, these
+are bits):
+
+0 + 0 + 0 = 0
+0 + 0 + 1 = 1
+0 + 1 + 0 = 1
+1 + 0 + 0 = 1
+
+These all fit in a 1 bit result, the carry out is zero, we have enough
+room in the result to store the actual result.
+
+As soon as we do something like this
+
+0 + 1 + 1 = 0
+
+We have an overflow.  The result does not fit within the single bit
+container, in the same way that a gallon of milk does not fit in a tea
+cup, it overflows and spills out over the sides.
+
+The carry (out) bit tells us that we have exceeded the capacity of
+our fixed bit system.  When you look at our four bit adder:
+
+ wxyzf
+  gggg
++ hhhh
+======
+  jjjj
+
+The w bit coming out of the eights column indicates that our answer does
+not fit.  Take the unsigned values 12 + 5
+
+ 11000
+  1100
++ 0101
+======
+  0101
+
+It does not fit, the carry (out) bit is set when the .add. is finished.
+
+We have finally gotten to a conclusion.  For an .add. operation if
+the carry (out) bit is set in the status register, we have an unsigned
+overflow condition.  Now is that limited to only the .add. operation
+or does that carry bit tell us anything about the .sub. operation?
+
+Lets try a few .sub. operations.
+
+5 - 12 = 5 + (-12) = 0b0101 + (-0b1100) = 0b0101 + 0b0011 + 1
+
+  1111
+  0101
++ 0011
+======
+  1001
+
+From an unsigned perspective, in our four bit system we are limited to
+the values 0 to 15, the answer -7 cannot be represented in the unsigned
+number system so that is an overflow (or underflow if you want to
+call it that), but the carry bit was not set.
+
+What if we look at a .sub. operation where the result does fit in
+our unsigned number system
+
+12 - 5 = 12 + (-5) = 0b1100 + (-0b0101) = 0b1100 + 0b1010 + 1
+
+ 10001
+  1100
++ 1010
+======
+  0111
+
+Okay, that is interesting.  When performing a .sub. with unsigned
+numbers and the answer does fit within the number system, it appears
+that no overflow occured, and the carry bit is set.
+
+Lets take this to a 2 bit system so we can see all of the combinations
+
+0b00 - 0b00 = 0b00 + 0b11 + 1 = 0b100 = 0b00 c = 1  [0 - 0 = +0]
+0b00 - 0b01 = 0b00 + 0b10 + 1 = 0b011 = 0b11 c = 0  [0 - 1 = -1]
+0b00 - 0b10 = 0b00 + 0b01 + 1 = 0b010 = 0b10 c = 0  [0 - 2 = -2]
+0b00 - 0b11 = 0b00 + 0b00 + 1 = 0b001 = 0b01 c = 0  [0 - 3 = -3]
+0b01 - 0b00 = 0b01 + 0b11 + 1 = 0b101 = 0b01 c = 1  [1 - 0 = +1]
+0b01 - 0b01 = 0b01 + 0b10 + 1 = 0b100 = 0b00 c = 1  [1 - 1 = +0]
+0b01 - 0b10 = 0b01 + 0b01 + 1 = 0b011 = 0b11 c = 0  [1 - 2 = -1]
+0b01 - 0b11 = 0b01 + 0b00 + 1 = 0b010 = 0b10 c = 0  [1 - 3 = -2]
+0b10 - 0b00 = 0b10 + 0b11 + 1 = 0b111 = 0b11 c = 1  [2 - 0 = +2]
+0b10 - 0b01 = 0b10 + 0b10 + 1 = 0b101 = 0b01 c = 1  [2 - 1 = +1]
+0b10 - 0b10 = 0b10 + 0b01 + 1 = 0b100 = 0b00 c = 1  [2 - 2 = +0]
+0b10 - 0b11 = 0b10 + 0b00 + 1 = 0b011 = 0b11 c = 0  [2 - 3 = -1]
+0b11 - 0b00 = 0b11 + 0b11 + 1 = 0b111 = 0b11 c = 1  [3 - 0 = +3]
+0b11 - 0b01 = 0b11 + 0b10 + 1 = 0b110 = 0b10 c = 1  [3 - 1 = +2]
+0b11 - 0b10 = 0b11 + 0b01 + 1 = 0b101 = 0b01 c = 1  [3 - 2 = +1]
+0b11 - 0b11 = 0b11 + 0b00 + 1 = 0b100 = 0b00 c = 1  [3 - 3 = +0]
+
+For unsigned numbers, whenever we get a negative result, something that
+does not fit in our unsigned number system, the carry bit is not set.
+When the number fits the carry bit is set.  So we can safely say that
+for a .sub. operation the carry bit indicates a not overflow condition.
+
+Like the .adc. instruction you see in some processors you will also
+see a subtract with borrow .sbb., and it works pretty much the same
+way.  We know that to use the four bit wide adder to perform subtraction
+we feed the carry in with a 1.  Likewise we now know that when there
+are no borrowing problems, the carry out is a 1.  When we have a borrow
+though the carry out is a 0.  If we were to starve that adder being
+used as a subtract one addition.  Instead of 5 - 3 being
+5 + (~3) + 1.  It was 5 + (~3) + 0 that would be like the four bit
+adder below it borrowing a one from the adder above it right?  Right.
+So just like an .add. instruction followed by a series of .adc.
+instructions being used to widen the overall .add. operation.  A
+.sub. operation followed by a series of .sbb. operations serves to
+widen the .sub. operation.  You can perform a 4 or 8 or 12 or 16 or
+as many bits wide as you have storage for.
+
+As of this writing the lsa processor does not have a .adc. instruction
+nor a .sbb. instruction.  Although the instruction set documentation
+does indicate that those are possible additions to the architecture.
+
+So we are half way through this understanding of these overflow bits.
+The carry flag can be used to indicate unsigned overflow for addition
+and subtraction.  For an .add. operation the carry bit being set
+means the .add. failed, we dont have enough room to store the answer,
+and for a .sub. a carry bit being zero means the .add. failed we
+did not have room to store the answer.
+
+A .cmp. or .sub. is used in programs to compare two numbers and
+the flags are used to perform conditional branches.  A .cmp.
+is the same logic as a .sub. except the result is not stored, only the
+flags are stored.
+
+So can we make sense of this for the unsigned .sub. case.
+.sub. a - b
+if a < b then we get a borrow on the subtract, which is the same as
+saying we had an overflow on an unsigned .sub., which results in the
+carry bit being zero.  So a < b means carry is a zero which means
+branch if not carry makes sense:
+
+0100 bnc (unsigned less than)
+
+the left operand is less than the right operand
+
+Likewise if a - b leves the carry bit set.  For a .sub. (or .cmp.)
+operation that means there was no borrow that happened.  No borrow
+means that a = b or a > b.  So branch if carry also makes sense:
+
+0011 bc  (unsigned greater than or equal)
+
+the left operand is greater than or equal to the right operand.
+
+
+
+What happens when we treat these bit patterns as signed, or twos
+complement numbers?  Lets look at the two bit system so we can
+see the whole thing at a glance.
+
+0b00 + 0b00 = 0b000 = 0b00 c = 0 [+0 + +0 = +0] v = 0
+0b00 + 0b01 = 0b001 = 0b01 c = 0 [+0 + +1 = +1] v = 0
+0b00 + 0b10 = 0b010 = 0b10 c = 0 [+0 + -2 = -2] v = 0
+0b00 + 0b11 = 0b011 = 0b11 c = 0 [+0 + -1 = -1] v = 0
+0b01 + 0b00 = 0b001 = 0b01 c = 0 [+1 + +0 = +1] v = 0
+0b01 + 0b01 = 0b010 = 0b10 c = 0 [+1 + +1 = +2] v = 1
+0b01 + 0b10 = 0b011 = 0b11 c = 0 [+1 + -2 = -1] v = 0
+0b01 + 0b11 = 0b100 = 0b00 c = 1 [+1 + -1 = +0] v = 0
+0b10 + 0b00 = 0b010 = 0b10 c = 0 [-2 + +0 = -2] v = 0
+0b10 + 0b01 = 0b011 = 0b11 c = 0 [-2 + +1 = -1] v = 0
+0b10 + 0b10 = 0b100 = 0b00 c = 1 [-2 + -2 = -4] v = 1
+0b10 + 0b11 = 0b101 = 0b01 c = 1 [-2 + -1 = -3] v = 1
+0b11 + 0b00 = 0b011 = 0b11 c = 0 [-1 + +0 = -1] v = 0
+0b11 + 0b01 = 0b100 = 0b00 c = 1 [-1 + +1 = +0] v = 0
+0b11 + 0b10 = 0b101 = 0b01 c = 1 [-1 + -2 = -3] v = 1
+0b11 + 0b11 = 0b110 = 0b10 c = 1 [-1 + -1 = -2] v = 0
+
+The status flag v is the signed overflow bit, and the answers are
+provided above, and the results do not match, for an .add. operation
+the carry bit does not tell us anything at all about signed overflow.
+The fact that the processor has a separate signed overflow status
+bit, is a hint that it is not the same as any of the other status
+bits.
+
+You can maybe think your way through this, but the answer may come
+loking at some different bit patterns.  Two bit system again.  Let's take
+one of the problem cases 0b01 + 0b01 = 1 + 1 = 2.  What is wrong with
+2 you say?  This is a signed, twos complement, two bit system our list
+of valid patterns is:
+
+0b00 +0
+0b01 +1
+0b10 -2
+0b11 -1
+
++2 is not a valid twos complement number in a 2 bit system.
+
+To truly figure out the signed overflow we need to examine things
+on a per column basis, in particular the carry out of the msbit
+column and the carry in for that column.
+
+If I look at the two bit adder this way:
+
+ xy0
+  pq
++ rs
+====
+  nm
+
+where pq is the first two bit operand, rs is the second two bit operand.
+This is a .add. operation so the carry into the operation is a 0.  m is
+the result from the ones column (0 + q + s) and y is the carry out of
+the ones and the carry in to the twos column.  n is the result of the
+twos column (y + p + r) and x is the carry out from the twos column.
+
+If we re-draw our two bit table, the 0b notation gets too hard to read
+the numbers between brackets [ ]  are decimal the rest of the table
+is binary.
+
+pq   rs   q + s = ym   y + p + r = xn   yx
+00 + 00 : 0 + 0 = 00   0 + 0 + 0 = 00   00  [+0 + +0 = +0] v = 0
+00 + 01 : 0 + 1 = 01   0 + 0 + 0 = 00   00  [+0 + +1 = +1] v = 0
+00 + 10 : 0 + 0 = 00   0 + 0 + 1 = 01   00  [+0 + -2 = -2] v = 0
+00 + 11 : 0 + 1 = 01   0 + 0 + 1 = 01   00  [+0 + -1 = -1] v = 0
+01 + 00 : 1 + 0 = 01   0 + 0 + 0 = 00   00  [+1 + +0 = +1] v = 0
+01 + 01 : 1 + 1 = 10   1 + 0 + 0 = 01   10  [+1 + +1 = +2] v = 1
+01 + 10 : 1 + 0 = 01   0 + 0 + 1 = 01   00  [+1 + -2 = -1] v = 0
+01 + 11 : 1 + 1 = 10   1 + 0 + 1 = 10   11  [+1 + -1 = +0] v = 0
+10 + 00 : 0 + 0 = 00   0 + 1 + 0 = 01   00  [-2 + +0 = -2] v = 0
+10 + 01 : 0 + 1 = 01   0 + 1 + 0 = 01   00  [-2 + +1 = -1] v = 0
+10 + 10 : 0 + 0 = 00   0 + 1 + 1 = 10   01  [-2 + -2 = -4] v = 1
+10 + 11 : 0 + 1 = 01   0 + 1 + 1 = 10   01  [-2 + -1 = -3] v = 1
+11 + 00 : 1 + 0 = 01   0 + 1 + 0 = 01   00  [-1 + +0 = -1] v = 0
+11 + 01 : 1 + 1 = 10   1 + 1 + 0 = 10   11  [-1 + +1 = +0] v = 0
+11 + 10 : 1 + 0 = 01   0 + 1 + 1 = 10   01  [-1 + -2 = -3] v = 1
+11 + 11 : 1 + 1 = 10   1 + 1 + 1 = 11   11  [-1 + -1 = -2] v = 0
+
+And although it may be hard to see, there is the solution, when the
+carry in to the msbit is not equal to the carry out of the msbit
+we have a signed overflow, v.
+
+The key here is only the msbit column, if we had a 537 wide adder
+function we dont care about anything but that most significant column.
+
+For our four bit adder:
+
+ wxyzf
+  gggg
++ hhhh
+======
+  jjjj
+
+if x != w then we have a signed overflow for a .add. operation.
+
+Now we have to go through the subtract to see what, if anything,
+that tells us. 0bpq - 0brs is the same as 0bpq + (~0brs) + 1
+
+pq   rs   1 + q +~s = ym   y + p +~r = xn   yx
+00 - 00 : 1 + 0 + 1 = 10   1 + 0 + 1 = 10   11  [+0 - +0 = +0] v = 0
+00 - 01 : 1 + 0 + 0 = 01   0 + 0 + 1 = 01   00  [+0 - +1 = -1] v = 0
+00 - 10 : 1 + 0 + 1 = 10   1 + 0 + 0 = 01   10  [+0 - -2 = +2] v = 1
+00 - 11 : 1 + 0 + 0 = 01   0 + 0 + 0 = 00   00  [+0 - -1 = +1] v = 0
+01 - 00 : 1 + 1 + 1 = 11   1 + 0 + 1 = 10   11  [+1 - +0 = +1] v = 0
+01 - 01 : 1 + 1 + 0 = 10   1 + 0 + 1 = 10   11  [+1 - +1 = +0] v = 0
+01 - 10 : 1 + 1 + 1 = 11   1 + 0 + 0 = 01   10  [+1 - -2 = +3] v = 1
+01 - 11 : 1 + 1 + 0 = 10   1 + 0 + 0 = 01   10  [+1 - -1 = +2] v = 1
+10 - 00 : 1 + 0 + 1 = 10   1 + 1 + 1 = 11   11  [-2 - +0 = -2] v = 0
+10 - 01 : 1 + 0 + 0 = 01   0 + 1 + 1 = 10   01  [-2 - +1 = -3] v = 1
+10 - 10 : 1 + 0 + 1 = 10   1 + 1 + 0 = 10   11  [-2 - -2 = +0] v = 0
+10 - 11 : 1 + 0 + 0 = 01   0 + 1 + 0 = 01   00  [-2 - -1 = -1] v = 0
+11 - 00 : 1 + 1 + 1 = 11   1 + 1 + 1 = 11   11  [-1 - +0 = -1] v = 0
+11 - 01 : 1 + 1 + 0 = 10   1 + 1 + 1 = 11   11  [-1 - +1 = -2] v = 0
+11 - 10 : 1 + 1 + 1 = 11   1 + 1 + 0 = 10   11  [-1 - -2 = +1] v = 0
+11 - 11 : 1 + 1 + 0 = 10   1 + 1 + 0 = 10   11  [-1 - -1 = +0] v = 0
+
+WHY all of this works?  Good question.  The fact that it works for both
+.add. and .sub. without having to invert the meaning for .sub. is nice.
+The v bit is not used for daisy chaining adders so we dont have to
+worry about the .sub. v bit wanting to be inverted or anything like
+that.
+
+Now how does that translate into this:
+
+1001 bsg signed greater or equal (n xor v) = 0
+1010 bsl signed less than        (n xor v) = 1
+
+The n flag in the status register happens to be the n bit in our table
+above (I swear that was an accident).
+
+               n  v
+[+0 - +0 = +0] 0  0
+[+0 - +1 = -1] 1  0
+[+0 - -2 = +2] 1  1
+[+0 - -1 = +1] 0  0
+[+1 - +0 = +1] 0  0
+[+1 - +1 = +0] 0  0
+[+1 - -2 = +3] 1  1
+[+1 - -1 = +2] 1  1
+[-2 - +0 = -2] 1  0
+[-2 - +1 = -3] 0  1
+[-2 - -2 = +0] 0  0
+[-2 - -1 = -1] 1  0
+[-1 - +0 = -1] 1  0
+[-1 - +1 = -2] 1  0
+[-1 - -2 = +1] 0  0
+[-1 - -1 = +0] 0  0
+
+When two numbers are compared in software the .cmp. instruction is
+used.  A .sub. can also be used if you want to save the results as well
+as change the flags.  A .cmp. is a .sub. without saving the result.
+
+Lets start by looking at our table above for all the cases where n != v
+
+               n  v
+[+0 - +1 = -1] 1  0  +0 < +1
+[-2 - +0 = -2] 1  0  -2 < +0
+[-2 - +1 = -3] 0  1  -2 < +1
+[-2 - -1 = -1] 1  0  -2 < -1
+[-1 - +0 = -1] 1  0  -1 < +0
+[-1 - +1 = -2] 1  0  -1 < +1
+
+Compared to the cases where n = v
+
+               n  v
+[+0 - +0 = +0] 0  0  +0 = +0
+[+0 - -2 = +2] 1  1  +0 > -2
+[+0 - -1 = +1] 0  0  +0 > -1
+[+1 - +0 = +1] 0  0  +1 > +0
+[+1 - +1 = +0] 0  0  +1 = +1
+[+1 - -2 = +3] 1  1  +1 > -2
+[+1 - -1 = +2] 1  1  +1 > -1
+[-2 - -2 = +0] 0  0  -2 = -2
+[-1 - -2 = +1] 0  0  -1 > -2
+[-1 - -1 = +0] 0  0  -1 = -1
+
+That is crazy how that works is it not?  When (n .xor v) = 0
+is the same as saying n = v  a is greater than or equal to b.
+Saying (n .xor. v) = 1 is the same as saying n != v, which is
+what we get when a < b.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
