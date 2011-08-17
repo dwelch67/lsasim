@@ -615,6 +615,71 @@ what we get when a < b.
 
 
 
+Need to re-write this or discard it....
+
+All of the above makes sense from a logic perspective, from a software
+perspective there is another way to compute both carry and signed
+overflow.
+
+Addition and the carry bit doesnt change, say we are simulating
+a four bit system with varaibles that can hold a lot more than four
+bits or at least 5 bits or more.  0xF + 0xF  = 0x1E  the 0x10 bit
+still indicates carry for addition.
+
+Now if we were to subtract 0xF - 0xF, unsigned,  that is 15 - 15 = 0
+doing it the way shown above
+
+ 11111
+  1111
++ 0000
+======
+  0000
+
+The carry bit is set.  and it is supposed to be, there was no unsigned
+overflow.  But if you take out your calculator, that does hex, and
+subtract 0xF - 0xF you get 0x00000....00000 bit 5 is not set!  So
+if you are writing a simulator or even if you look at the hdl
+
+A subtract operation
+
+ra = 0xF;
+rb = 0xF;
+
+one_way = ra - rb;
+two_way = ra + ((~rb)&0xF) + 1;
+
+if(one_way&0x10) c_one_way=0; else c_one_way=1;
+if(two_way&0x10) c_two_way=1; else c_two_way=0;
+
+And both methods work.
+
+Likewise you can compute the v bit the way above OR so far it appears
+to work by only looking at the msbit of the operands and result.
+
+for addition, for a four bit system:
+
+res = ra + rb;
+
+if
+(
+    ((ra&0x8) == (rb&0x8))
+    &&
+    ((res&0x8) != (rb&0x8))
+)    status|=VBIT;
+else status&=(~VBIT);
+
+subtraction:
+
+res = ra + rb;
+
+if
+(
+    ((ra&0x8) != (rb&0x8))
+    &&
+    ((res&0x8) == (rb&0x8))
+)    status|=VBIT;
+else status&=(~VBIT);
+
 
 
 
