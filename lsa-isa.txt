@@ -1,11 +1,35 @@
 
 LSA RISC instruction set.
 
+
+
+
+Notation:
+rx =  register x where x = decimal number between 0-127
+rd = destination register
+rs = source register
+immed = immediate (integer constant)
+unsigned_immed = unsigned immediate (integer constant) positive only
+signed_immed = signed immediate (integer constant) can be positive or negative
+0x1234 = 0x indicates hex number
+alu = arithmetic logic unit
+pc = program counter
+sp = stack pointer
+n = negative flag bit
+z = zero flag bit
+c = carry flag bit
+v = overflow flag bit
+pop = take value off stack
+push = put value on stack
+[rx] = rx is used as an address in memory space
+
+
 RISC instruction set.  Instructions are fixed at 16 bits.
 
-memory uses up to a 16 bit address, and data is strictly 16 bits.
+Memory uses up to a 16 bit address, and data is strictly 16 bits.
 Address 0x0000 is the first 16 bit data word, address 0x0001 is the
-next 16 bit data word, etc.  The term word refers to a 16 bit value.
+next 16 bit data word, etc.  The term word refers to a 16 bit binary
+value.
 
 128 General Purpose Registers r0 - r127.  Three are special, the rest
 are general purpose.  All registers are 16 bit.
@@ -14,26 +38,24 @@ Program Counter (r0)
 
 From a programmers standpoint r0 contains the address of the executing
 instruction plus 1.  A number of instructions, lpc, spc, bpc, etc
-specifically use r0.  Most other instructions allow combinations of
-any register, including r0.
+use r0 without it being specified.  Most other instructions allow
+combinations of any register, including r0.
 
 Status Register (r1)
 
-This register contains the ALU result bits n, z, v, and c.  Conditional
-branch instructions like bz, bnv, etc specifically use the bits in this
-register.  When this register is specified as the destination of an
-instruction the result of the operation takes precidence over the flags.
-For example xor r1,r1 will result in r1 being a 0x00, the z flag
-will not be set.
+This register contains the ALU result flags n, z, v, and c.  Conditional
+branch instructions like bz, bnv, etc. specifically use the bits in this
+register.  When r1 register is specified as the destination of an
+instruction the result of the instruction operation takes precedence
+over the flags. For example xor r1,r1 will result in the contents of
+r1 being a 0x00, the z flag will not be set.
 
 r1[3:0] = vncz
 
-all alu operations update the flags
-any load or other operation that has an rd of r1 will
-write over the flags.  Also rrc and rlc affect the c flag.
-Other than those cases the flags are not changed by an instruction.
-
-
+All alu operations update the flags any load or other operation that
+has an rd of r1 will write over the flags.  Also rrc and rlc affect
+the c flag. Other than those cases the flags are not changed by an
+instruction.
 
 Stack Pointer (r2)
 
@@ -42,23 +64,19 @@ specific to r2 for reaching into the stack.  These instructions are
 designed for stacks that grown down.  There push instruction is encoded
 as stw [--r2],rs the pop instruction is ldw rd,[r2++].
 
-
 High Registers.
 
 r0-r15    Low bank
 r16-r127  High bank
 
-move to/from high register is the only instruction that supports the
+Move to/from high register is the only instruction that supports the
 high bank of registers.  Removing support for this instruction can be
 used to reduce the hardware requirements needed to implement the
-processor.  Allowing this instruction and these registers can make the
-implementation of a compiler back end easier.  Alternatively the
+processor.  Allowing this instruction and these registers can make
+the implementation of a compiler back end easier.  Alternatively the
 hardware implementation does not have to support the full 128 registers
-it can support 64 or 32 for example by ignoring some of the bits in
-the instruction.
-
-
-
+it can support 64 or 32 for example by ignoring some of the bits in the
+instruction.
 
 LSA Opcode Map
 
@@ -79,7 +97,6 @@ LSA Opcode Map
 1110
 1111
 1111 1111 1111 1111  halt
-
 
 
 
@@ -108,6 +125,7 @@ lsp rd,#0x7
 Note, labels are pc relative, so there is no ;sp label format
 
 
+
 0010 ssss iiiiiiii   store pc relative
 
 pc (r0) is instruction address + 1;
@@ -118,6 +136,7 @@ Note: i is not sign extended, it can only address forward
 spc #5,rs
 spc #0x7,rs
 spc label,rs
+
 
 
 0011 ssss iiiiiiii   store sp relative
@@ -154,6 +173,7 @@ aaaa
 1111
 
 
+
 0101 bbbb accccccc   mov to/from high register
 
 rb = r0 - r15
@@ -162,7 +182,6 @@ rc = r0 - r127
 a
 0 mov rb,rc
 1 mov rc,rb
-
 
 swap (swap halves)
 rd = (rs<<8)|(rs>>8)
@@ -202,17 +221,17 @@ dec rd,rs  rd = rs -  1
 cmp rd,rs     = rd - rs
 tst rd,rs     = rd & rs
 
-all alu operations update the flags
-add, sub, neg, inc, and dec use v as signed overflow and c as signed
-overflow/carry, the others and, dna, or, xor, not v and c are zero.
-n is bit 15 of the result and z is set if result is zero.
+All alu operations update the flags add, sub, neg, inc, and dec use v
+as signed overflow and c as signed overflow/carry, the others and, dna,
+or, xor, not v and c are zero. n is bit 15 of the result and z is set
+if result is zero.
 
 
 
 0111 dddd sisi aaaa  shift
 
-for register shifts   rs = sisi
-for immediate shifts  imm = sisi
+For register shifts   rs = sisi
+For immediate shifts  imm = sisi
 
 aaaa
 0000 lsr rd,rs
@@ -232,8 +251,7 @@ aaaa
 1110 rlc rd,#imm
 1111
 
-only the lower 4 bits of rs are used for register shifts
-
+Only the lower 4 bits of rs are used for register shifts
 
 
 
@@ -245,7 +263,6 @@ lhz rd,#imm
 
 llz rd[15:8] = 0 rd[7:0] = imm
 lhz rd[15:8] imm rd[7:0] = 0
-
 
 
 
@@ -263,7 +280,7 @@ lh rd[15:8] imm rd[7:0] = no change
 1100 aaaa siiiiiii   branch pc relative
 1101 aaaa dddd ssss  branch register
 
-condition encoding
+Condition encoding
 
 0000 b
 0001 bz
@@ -282,14 +299,14 @@ condition encoding
 1110
 1111 call
 
-call is special, is only encoded using the branch register format
+Call is special, is only encoded using the branch register format
 
 call rd,rs
 
 rd = pc
 pc = rs
 
-Note to return, use ldw pc,rs or b rs where rs is the rd from the call.
+Note: to return, use ldw pc,rs or b rs where rs is the rd from the call.
 
 
 
@@ -297,8 +314,8 @@ Note to return, use ldw pc,rs or b rs where rs is the rd from the call.
 
 bz #imm
 
-if zero flag is set, pc = (pc+1)+sign_extend(imm) from a programmers
-perspective
+If zero flag is set, pc = (pc+1)+sign_extend(imm) from a programmers perspective
+
 
 
 1101 aaaa dddd ssss  branch register
@@ -309,17 +326,18 @@ if zero flag is set, pc = rs
 
 
 
+
+
+
 The LSA processor is designed around a ram only model.  Having 16 bit
 registers the memory space is limited to 64KWords (128KBytes)
 
 Reset vectors start at address 0x0000
 
 0x0000 reset
-0x0001 interrupt (not supported yet, TODO)
-others are tbd
+0x0001 interrupt (not supported yet, TODO) others are tbd
 
-the reset/interrupt vector contains a branch instruction to the
-handler.
+The reset/interrupt vector contains a branch instruction to the handler.
 
 Implementations can then choose to use less memory, 12 bits for 4096
 words of ram, etc.
@@ -328,102 +346,104 @@ Registers (uart, timers, etc) are in the 0xF000 range, maybe 0xE000 if
 that is not enough so with a full 16 bit memory space 1/16th of that
 memory is not available.
 
-Ideally a microcontroller will want to have the program in rom.
-A simple implementation would be on reset to have the rom copied over to
+Ideally a microcontroller will want to have the program in rom. A
+simple implementation would be on reset to have the rom copied over to
 ram then release reset on the processor.
-Another implementation might be to have the lower half of memory, or
-a fraction thereof be ram and the upper half or portion be rom.  Before
-booting the hardware needs to write the address of the entrypoint in
-rom (ideally the first rom location).  The boot code would then add
-an interrupt vector if so desired.
+
+Another implementation might be to have the lower half of memory, or a
+fraction thereof be ram and the upper half or portion be rom.  Before
+booting the hardware needs to write the address of the entry point in
+rom (ideally the first rom location).  The boot code would then add an
+interrupt vector if so desired.
 
 
 
-possible instructions:
-adc  add with carry
-sbb  subtract with borrow
-mul  multiply takes three registers though
-div  divide   takes three registers though
-nor  or with result inverted
-nand and with result inverted
+Possible instructions to add:
+adc   add with carry
+sbb   subtract with borrow
+mul   multiply takes three registers though
+div   divide   takes three registers though
+nor   or with result inverted
+nand  and with result inverted
 
-called it dna because may want to add a bic and bis
-where the operand is a 4 bit bit number
+Called it dna because may want to add a bic and bis where the operand
+is a 4 bit number
 bic rd,#imm clears the bit specified
 bis rd,#imm sets the bit specified
 
 
 
-Complete list of supported instructions:
+Complete list of lsa supported instructions:
 
-lpc rd,#imm
-lpc rd,label_name
-lsp rd,#imm
-spc #imm,rs
-spc label_name,rs
-ssp #imm,rs
-ldw rd,[rs]
-ldw rd,[rs++]
-ldw rd,[++rs]
-ldw rd,[rs--]
-ldw rd,[--rs]
-mov rd,rs      both low (r0-r15)
-stw [rd]  ,rs
-stw [rd++],rs
-stw [++rd],rs
-stw [rd--],rs
-stw [--rd],rs
-swap rd,rs
-mov rd,rs      one high (r0-r127) one low (r0-r15) (optional instruction, might not be implemented)
-add rd,rs
-sub rd,rs
-and rd,rs
-dna rd,rs
-or  rd,rs
-xor rd,rs
-neg rd,rs
-not rd,rs
-inc rd,rs
-dec rd,rs
-lsr rd,rs
-asr rd,rs
-lsl rd,rs
-ror rd,rs
-rol rd,rs
-rrc rd,rs
-rlc rd,rs
-lsr rd,#imm
-asr rd,#imm
-lsl rd,#imm
-ror rd,#imm
-rol rd,#imm
-rrc rd,#imm
-rlc rd,#imm
-llz rd,#imm
-lhz rd,#imm
-ll  rd,#imm
-lh  rd,#imm
-b   #signed imm
-bz  #signed imm
-bnz #signed imm
-bc  #signed imm
-bnc #signed imm
-bn  #signed imm
-bnn #signed imm
-bv  #signed imm
-bnv #signed imm
-bsg #signed imm
-bsl #signed imm
-b   rs
-bz  rs
-bnz rs
-bc  rs
-bnc rs
-bn  rs
-bnn rs
-bv  rs
-bnv rs
-bsg rs
-bsl rs
-call rd,rs
-halt
+lpc rd,#imm         Load program counter immediate
+lpc rd,label_name   Load program counter label
+lsp rd,#imm         Load stack pointer
+spc #imm,rs         Store program counter immediate
+spc label_name,rs   Store program counter label
+ssp #imm,rs         Store stack pointer immediate
+ldw rd,[rs]         Load word
+ldw rd,[rs++]       Load word post increment rs
+ldw rd,[++rs]       Load word pre increment rs
+ldw rd,[rs--]       Load word post decrement rs
+ldw rd,[--rs]       Load word pre decrement rs
+mov rd,rs           Move
+stw [rd]  ,rs       Store word
+stw [rd++],rs       Store word post increment rd
+stw [++rd],rs       Store word pre increment rd
+stw [rd--],rs       Store word post decrement rd
+stw [--rd],rs       Store word pre decrement rd
+swap rd,rs          Swap
+mov rd,rs           Move
+add rd,rs           Add
+sub rd,rs           Subtract
+and rd,rs           Logical And
+dna rd,rs           Logical reverse and (nand)
+or  rd,rs           Logical or
+xor rd,rs           Logical xor
+neg rd,rs           Logical negative
+not rd,rs           Logical not
+inc rd,rs           Increment
+dec rd,rs           Decrement
+lsr rd,rs           Logical shift right register
+asr rd,rs           Arithmetic shift right register
+lsl rd,rs           Logical shift left register
+ror rd,rs           Rotate right register
+rol rd,rs           Rotate left register
+rrc rd,rs           Rotate right carry register
+rlc rd,rs           Rotate left carry register
+lsr rd,#imm         Logical shift right immediate
+asr rd,#imm         Arithmetic shift right immediate
+lsl rd,#imm         Logical shift left immediate
+ror rd,#imm         Rotate right immediate
+rol rd,#imm         Rotate left  immediate
+rrc rd,#imm         Rotate right carry immediate
+rlc rd,#imm         Rotate left carry immediate
+llz rd,#imm         Load immediate Low (half), zero High (half)
+lhz rd,#imm         Load immediate High (half), zero Low (half)
+ll  rd,#imm         Load immediate Low (half)
+lh  rd,#imm         Load immediate High (half)
+b   #signed imm     Branch unconditional immediate
+bz  #signed imm     Branch if zero immediate (z = 1)
+bnz #signed imm     Branch if not zero immediate (z = 0)
+bc  #signed imm     Branch if carry immediate (c = 1) (unsigned greater or equal)
+bnc #signed imm     Branch if not carry immediate  (c = 0) (unsigned less)
+bn  #signed imm     Branch if negative immediate (n = 1)
+bnn #signed imm     Branch if not negative immediate (n = 0)
+bv  #signed imm     Branch if signed overflow immediate(v = 1)
+bnv #signed imm     Branch if not signed overflow immediate (v = 0)
+bsg #signed imm     Branch signed greater or equal immediate (n .xor. v) = 0  (n == v)
+bsl #signed imm     Branch signed less than immediate (n .xor. v) = 1  (n != v)
+b   rs              Branch unconditional register
+bz  rs              Branch if zero register (z = 1)
+bnz rs              Branch if not zero register (z = 0)
+bc  rs              Branch if carry register (c = 1) (unsigned greater or equal)
+bnc rs              Branch if not carry register  (c = 0) (unsigned less)
+bn  rs              Branch if negative register(n = 1)
+bnn rs              Branch if not negative register (n = 0)
+bv  rs              Branch if signed overflow register(v = 1)
+bnv rs              Branch if not signed overflow register (v = 0)
+bsg rs              Branch signed greater or equal register(n .xor. v) = 0  (n == v)
+bsl rs              Branch signed less than register (n .xor. v) = 1  (n != v)
+call rd,rs          Call
+halt                Stop
+cmp rd,rs           Compare
