@@ -608,13 +608,13 @@ show: 0x0034
 
 What does this program do?
 
-r8 gets the value 0x0100.  Most of the memory implemented in the lsa-sim
-simulator is available for generic read/write use.  You should always
-be careful with your memory management, vector table, program space,
-stack space (explained later), and the stuff left over (heap).  This
-program has only a dozen instructions or so, so the address 0x100 is
-not being used so it is safe for this program to use.
+Most of the memory implemented in the lsa-sim simulator is available
+for generic read/write use.  In an embedded system like this you need
+to carefully manage your memory allocation.  This program is about a
+dozen instructions, so it is about a dozen memory locations.  Address
+0x0100 leaves plenty of room for code.
 
+r8 is loaded with the value 0x0100
 r9 is zeroed for demonstration purposes
 r5 is stored in memory at address 0x0100
 r9 is read from memory using the ldw (load word) at address 0x0100
@@ -633,19 +633,6 @@ r9=0x0000;
 *r8=r5;
 r9=*r8;
 *r7=r9; /* show 0x0034 */
-
-Load word (ldw) is the opposite of store word (stw).  Load word reads a
-word from memory.  The ldw instruction is defined in the form:
-
-    ldw rd,[rs]
-
-The ldw in this lesson
-
-    ldw r9,[r8]
-
-is used to read from memory at address 0x0100 and save the bits read
-from memory in the register r9.  For this to work r8 must contain the
-value 0x0100 before executing this load word.
 
 
 
@@ -726,10 +713,10 @@ and so on.
 
     lhz r8,#0x01      ; r8 = 0x0100
 
-    llz r9,#0x11       ; r9 = 0x0011
+    llz r9,#0x11      ; r9 = 0x0011
     stw [r8++],r9     ; ram[0x0100] = 0x0011 then r8 = 0x0100+1 = 0x0101
 
-    llz r9,#0x22       ; r9 = 0x0022
+    llz r9,#0x22      ; r9 = 0x0022
     stw [r8++],r9     ; ram[0x0101] = 0x0022 then r8 = 0x0101+1 = 0x0102
 
 The program then goes to verify the memory two ways, one is to manually
@@ -981,33 +968,38 @@ known as the program counter or pc.  It is used by the processor to hold
 the address in memory where the instructions are being fetched. If you
 think about it in terms of the steps the processor has to do. The
 processor needs to fetch, or read, from memory the instruction to be
-executed. At some point it will need to increment r0 to fetch the next
-instruction so might as well increment r0 after it fetches an instruction
-(there are other reasons for incrementing now). Then it decodes the
-instruction, figuring out what the instruction does, then it executes
-the instruction.   If you use r0 directly in an instruction as we do in
-stw [r7],r0, which is in memory at 0x000E
+executed. After reading the instruction it is incremented to the
+next location.  If nothing happens to cause it to change that is the
+address/instruction that will be fetched next.
+
+If you use r0 directly in an instruction as we do in stw [r7],r0
 
     MEM,0x000E,0x4708,END,,
 
-The output shows that r0 contains the current instruction address + 1.
+The output shows that r0 contains the current instruction address + 1
 
     show: 0x000F
 
-There are a couple of instructions that use the program counter to load
-and store variables for our program.  The lsa-as “extra instruction” for
-defining variables uses a label name instruction (name:) then .word to
-indicate that this a memory location and is defined as static data
-followed by the value to initialize that memory location. In this case
-the variables/labels are named jack and jill. The labels jack and jill
-are now variables that contain memory addresses which have been
-initialized with some known content.
+assuming the program was entered exactly as written above.
 
-    jack:   .word 0xABCD
+The keyword .word tells the lsa-as assembler that you want to fill
+that memory location with the item specified after the keyword.
+
+jack:   .word 0xABCD
+
+The label is used so that our program can access that memory location
+but allow the assembler to compute the address for you.
+
+This program has two memory locations defined with static values,
+jack and jill.
+
+jack:   .word 0xABCD
+jill:   .word 0
 
 As with instructions, the assembler determines, by its location in the
 program, the address for the variable.  For this program the address
-for jack is 0x0012 and for jill 0x0013.
+for jack is 0x0012 and for jill 0x0013 (if you assemble the program
+exactly as written above).
 
     <27> [0][0012][jack]
     <28> [0][0013][jill]
@@ -1015,8 +1007,7 @@ for jack is 0x0012 and for jill 0x0013.
     MEM,0x0012,0xABCD,END,,
     MEM,0x0013,0x0000,END,,
 
-The first time we try to load jack is on line 9 of the lesson listing
-(instruction 8).
+The first time we try to load jack is on line 9 of the lesson.
 
     lpc r9,jack
 
@@ -1028,21 +1019,22 @@ Once encoded this instruction becomes:
 
     MEM,0x0006,0x090B,END,,
 
-What the lpc (load pc relative) instruction does is take the program
-counter at the time we execute, which is the address of the current
-instruction plus one, add to that a constant encoded in the instruction
-and use that sum as the  address to read from memory.  The immediate
-bits we add from the instruction are the lower eight bits in the
-instruction, in this case 0x0B.
+The lpc (load pc relative) instruction takes the program counter (r0)
+which is the address of the instruction plus one at that time.  It adds
+the constant encoded in the instruction and uses that sum as the address
+to read from memory (the sum is not stored anywhere it is discarded
+after the memory read is complete).  The constant or immediate encoded
+in the instruction for the lpc instruction uses the lower eight bits
+of the instruction.  In this case 0x0B is the lower eight bits of
+the 0x090B instruction.
 
 So for this instruction, 0x090B, at address 0x0006, that means the
-memory location to be read is 0x0006 + 1 + 0x0B = 0x0012.  And what do
-you know?  That turns out to be the address of jack.  Which is what we
-told the assembler to do.
+memory location to be read is 0x0006 + 1 + 0x0B = 0x0012.  Which is
+the address for the label jack.  The assembler did what we asked it
+to do.
 
-spc is the same as lpc except it is a store, and, as usual, the
-destination is before the first (only) comma and the source is after
-the comma.  So
+The spc (store pc relative) instruction is the same as lpc except it
+is a store.  When used like this in the lesson
 
     spc jill,r9
 
@@ -1051,29 +1043,36 @@ address that is defined with the jill label.
 
 When label names are used, the assembler takes care of figuring out the
 address for you.  But, there is a rarely used form of these instructions
-that allows you to force the immediate that is used for the address.
+that allows you to force the immediate that is encoded in the
+instruction.
 
 [0x000F]:0x0903         lpc r9,#0x3
 [0x0010]:0x4798         stw [r7],r9
 [0x0011]:0xFFFF         halt
 [0x0012]:0xABCD     jack: .word #0xABCD
-[0x0013]:0x0000         jill: .word #0x0000
+[0x0013]:0x0000     jill: .word #0x0000
 
-It is difficult to use this form of the instruction properly because as
-soon as you add or remove instructions it will most likely mess up the
-address you were intending to use.
+It is difficult to use this form of the instruction properly, if you
+add or remove anything between the lpc instruction and the desired
+memory location the constant will be wrong or you will have to keep
+adjusting it.
 
-To understand this though, the lpc instruction with the immediate is at
-address 0x000F.  So 0x000F+1+0x03 is 0x0013, or the address for jill.
+This is only a syntax difference for the lsa-as assembler, the lpc
+function is exactly the same.  The the address used by the instruction
+is the current value of r0 + the constant.  The current value of r0 is
+the address of the instruction plus one.  In this case the lpc instruction
+is at address 0x000F, so the instruction computes the address
+0x000F+1+0x03 which is 0x0013 which happens to be the address for
+the jill label.
 
-Another way to look at it is illustrated below. The pc+ comment on the
+Another way to look at it is illustrated below. The pc+n comment on the
 side is relative to the lpc instruction and can be used to figure out
-how to visualize looking ahead and know what immediate to use with the
-lpc instruction. The contents of pc when lpc instruction is executed is
-0x000F+1 which is the address of stw – starting here as pc+0 count
-instructions forward (pc+1, pc+2, etc) until you get to the variable
-jill at pc+3.. This means that you put the immediate 0x3 in the lpc
-instruction.
+how to visualize looking ahead in the program.  At the time that lpc
+executes r0 holds the address for the stw (the address for lpc + 1),
+so from the perspective of the lpc instruction the stw instruction is
+at the address pc+0.  Halt, relative to lpc, is pc+1 and so on.  To
+access the memory at label jill the lpc instruction needs to encode
+a 3 in the instruction.
 
     lpc r9,#0x3
     stw [r7],r9     ; pc+0
@@ -1082,16 +1081,17 @@ jack: .word #0xABCD ; pc+2
 jill: .word #0x0000 ; pc+3
 
 You will likely never use the lpc or spc instructions in this form. The
-reason for going through this lengthy explanation is twofold. First, so
-that you understand that with this processor you can only reach
-255 (0xFF) instructions ahead of the current instruction, and second,
-that you can only access addresses greater than the current address.
+reasons for going through this exercise is to demonstrate that the
+lpc and spc instruction has eight unsigned bits available to add to
+the program counter (r0).  This means that these instruction can only
+reach 0 - 255 instructions greater than the program counter (1 - 256
+locations relative to the lpc or spc instruction). These instructions
+cannot reach addresses less than or equal to the address of the lpc
+or spc instruction.
 
-This second characteristic is not necessarily typical for processors,
-many or perhaps most use a (twos complement) signed immediate allowing
-you to reach forward or backward in memory, but only half as far.  This
-processor limits you to only forward addressing for the lpc and spc
-instructions.
+Similar instructions used in other processors often use a signed
+constant.  You can only reach half as far but you can reach forward
+and backward.
 
 
 
@@ -1147,25 +1147,18 @@ Not only does this demonstrate how to load or store memory locations
 defined using labels behind the program counter, but it also
 demonstrates unlimited reach.  The lpc instruction is limited to 255
 instructions ahead, but the address stored in the variable at that
-location is a full 16 bit address and can be an address to any location
-in the program.  So there will be times where you will have a variable
-defined either behind or more than 255 memory locations ahead of the
-code that wants to get to it.  By placing a temporary variable within
-255 locations ahead of the code that wants to access it, and making the
-assembler do the work of keeping track of the address for the variable
-we want to get at.  This two step approach can be used to access any
-variable anywhere in memory.
+location is a full 16 bit address, so any address in the processors
+memory space can be specified.  This two step approach allows you to
+reach any location in memory.
 
 Although most instruction sets do not limit you to forward only pc
-relative addressing, most instruction sets have some mechanism for
-reaching near and far.  Some instruction sets specifically have near
-and far flavors of the instruction (which require variable length
-instructions).  In some instruction sets you have to specify the near
-or far flavor of the instruction yourself(causing an error if you reach
-too far with a near instruction). Other instruction sets use one mnemonic
-for both flavors and the assembler takes care of figuring it out for
-you and encoding the right instruction (taking some of the control over
-the instructions generated out of your hands).
+relative addressing, some of those processors require a similar two
+step approach and others that have variable length instructions
+provide similar functionality without the two step approach.  Sometimes
+the assembler allows you to use a common instruction name and a label
+and the assembler figures out if it is a far or near reaching instruction
+and ecodes it for you.  This can be good or bad depding on how much
+control you want over the instructions generated.
 
 
 
@@ -1206,25 +1199,62 @@ show: 0x00EC
 What does this program do?
 
 This demonstrates a couple of the several arithmetic logic unit (alu)
-operations.  The first one is an add which performs the operation
-r9 = r9 + r8.  The second operation is a reverse .and.  The truth table
-for an .and. operation says that any bit anded with a one is itself, and
-any bit anded with a zero is zero.  R9 is a 0x0003 at this point, a
-normal .and. with a 0x0003 would leave you with the upper 14 bits zero
-and the two lower bits the same as whatever the two lower bits were in
-the destination register. This reverse .and.  though does the opposite,
-the bits that line up with zero bits in the source register will stay
-the same and bits that line up with ones in the source register will be
-zeroed.  So the dna operation with a source of 0x0003 means the upper 14
-bits stay the same and the lower 2 bits get zeroed.  A dna with 0x0003
-is the same as an .and. with 0xFFFC
+operations.  The first one is an add instruction which is defined
+as
 
-Why have a separate instruction? A dna of 0x0003 takes two instructions
-generally, an llz to put the 0x0003 in some register and the dna
-instruction.  An .and. of 0xFFFC takes three instructions lhz  with
-0xFF and ll with 0xFC then the .and.
+    add rd,rs
 
-The full list of alu operations and there functions are defined here
+and the function performed is rd = rd + rs.  As used in this program
+r9 = r9 + r8.
+
+The second operation is the dna instruction.  The dna instruction is
+like an and instruction except the source bits are inverted before
+the and operation happens.  The and, dna, or, xor, and tst instructions
+are logical, bitwise, operations.  Which means bit 0 of one operand
+and bit 0 of the other operand are computed to create bit 0 of the.
+The truth table for the logical and operation and logical dna operation
+are shown to understand how the dna operation compares to an and operation.
+
+a b and dna
+0 0  0   0
+0 1  0   0
+1 0  0   1
+1 1  1   0
+
+The columns a and b represent the two input bits.  With an and operation
+any bit in the rd register anded with a zero in the rs register results
+in a zero.  Any bit in the rd register anded with a one in the rs
+register results in itself.  With a dna operation any bit in the rd
+register dnaed with a zero in the rs register is itself.  Any bit in the
+rd register dnaed with a one in the rs register is a zero.  Both the
+dna instruction and and instruction are used to zero bits in the rd
+register, the difference is you might save an instruction by using
+one operation instead of the other.  For example if we want to zero
+all but the lower three bits of a register we can do this:
+
+    llz r2,#0x07
+    dna r3,r2
+
+or this
+
+    lhz r2,#0xFF
+    ll  r2,#0xF8
+    and r3,r2
+
+or this
+
+    llz r2,#0x07
+    not r2,r2
+    and r3,r2
+
+if the number of bits you want to zero is more than eight and you
+need to use a load immediate to specify those bits, then use the dna
+instruction, if the number of bits you want to zero is less than
+eight and you need to use an immediate instruction then use the and
+instruction.
+
+There are quite a few different alu instructions in the lsa processor.
+The full list and their functions are shown here:
 
 add rd,rs      rd = rd + rs
 sub rd,rs      rd = rd - rs
@@ -1239,9 +1269,9 @@ dec rd,rs      rd = rs -  1
 cmp rd,rs         = rd - rs
 tst rd,rs         = rd & rs
 
-Note that cmp (compare) and tst (test) do not modify the destination
-register.  They only update the flags, which we will get to in a few
-lessons.
+Note that cmp (compare) and tst (test) instructions do not modify the
+destination register.  They only update the flags, which we will get
+to in a few lessons.
 
 
 
@@ -1285,23 +1315,17 @@ This program demonstrates the unconditional branch instruction (b).
 Unconditional just as the name implies, just do it.  A branch is also
 known as a jump in other instruction sets or a goto in C.  We have
 actually, obviously, been using the unconditional branch instruction
-in the vector table (a table of addresses to various routines) all
-along in these lessons.  This lesson formally introduces the branch
-instruction as well as demonstrates that it can be used anywhere not
-just in the vector table.
+in the vector table in each of these lessons.  This lesson formally
+introduces the branch instruction as well as demonstrates that it
+can be used anywhere, not just in the vector table.
 
 There are eight increment instructions in this program, but two are
 branched over and not executed, so only six of them are executed causing
 r6 to end up as a 0x0006 when we show it.
 
-Be aware that some processors use pipelining. This would result in one
-or two instructions after the branch being executed because the processor
-had already fetched them. For design simplicity or performance reasons,
-you cannot remove the instructions once fetched.
-
-The lsa processor does not presently function in this manner.  The
-increment after the branch is not executed, so r6 contains 0x0006 when
-all is said and done.
+This processor does not have any "pipeline" rules that force the
+execution of instructions after a branch.  Pipelining is an interesting
+and important topic to understand but beyond the scope of this document.
 
 
 
@@ -1372,30 +1396,28 @@ Overflow flags (v, c) are a little more complicated so we will talk
 about them later.  The n and z flags are relatively simple though.
 
 The z flag represents a zero result.  If the result of the alu operation
-is zero then the z bit will be set (one).  If the result of the alu
-operation is not zero then the z bit will be clear (zero).
+is 0x0000 then the z bit will be set (one).  If the result of the alu
+operation is not 0x0000 then the z bit will be clear (zero).
 
-The n flag is there primarily for twos complement numbers, which you
-should go read up on if you are not familiar with them.  Basically the
-n bit gets bit 15 of the result of the alu operation.  Bit 15 is
-basically the sign bit for twos complement (16 bit) numbers, so if you
-are interested in a signed result and want to know if it is negative
-or not then you can use the n bit.  The n bit is set (one) if bit 15 of
-the result is set (negative) and the n bit is clear (zero) if bit 15 of
-the result is clear (positive).
+The n flag is even simpler, the n flag gets a copy of bit 15 of the
+result.  If bit 15 of the result is set (one) then the n flag will
+be set (one).  If bit 15 of the result is clear (zero) then the
+n flag will be clear (zero).  The n flag is useful for twos complement
+numbers when wanting to see if a result was negative or positive.
+Your prior programming experience should have exposed you to twos
+complement numbers.  Describing them is beyond the scope of this document.
 
-All of the alu operations modify all of the flags.  The n flag may not
-make much sense for a bitwise logic operation like .xor., perhaps, but
-nevertheless, n still gets bit 15 of the result (note that you are free
-to use the n flag for whatever programming shortcut you see fit, n
-doesn’t have to be used just for signed operations).  The z flag,
-however, does make sense for all of the alu operations reflecting a
-zero or non zero result.
+Since the n bit has a connection to twos complement numbers it might
+make more sense to only update it for math operations that might use
+twos complement numbers like the add instruction for example.  The
+reality is that the lsa processor copies bit 15 of the result to
+the n bit for all alu operations.  Likewise the z flag is computed
+for all alu operations.
 
-The program above shows that 0xFFFE + 0x0001 results in 0xFFFF.  0xFFFF
-is not zero and has bit 15 set, so the n flag is one and the z flag is
-zero.  Things change with 0xFFFF + 0x0001, the result is 0x0000, the z
-flag is set and the n flag is not.
+The program for this lesson shows that 0xFFFE + 0x0001 results in 0xFFFF.
+0xFFFF is not zero and has bit 15 set, so the n flag is one and the z
+flag is zero.  Things change with 0xFFFF + 0x0001, the result is 0x0000,
+the z flag is set and the n flag is not.
 
 
 
@@ -1451,22 +1473,24 @@ What does this program do?
 
 We learned what an unconditional branch (b) is and what the z flag
 represents.  Now we get to see what the status flags/bits are used for.
-The lesson12 program loads the value 0x0004 into r6.  We show r6,
-decrement it to 0x0003 then execute the new instruction bz, which means
-branch if zero or branch if the zero flag bit (z) is set.  We know that
-dec is an alu operation and the result of that operation modifies the
-status register.  If the result of the dec is a 0x0000 then the z bit is
-set, otherwise it is not.  So for the case where the result is 0x0003
-the z flag is not set, and the branch does not happen.  What that means
-is you do not branch to the address specified you simply continue on to
-the next instruction.  So for this case of dec resulting in 0x0003 we
-execute the next instruction which is an unconditional branch to lab01.
+This program loads the value 0x0004 into r6.  We show r6, decrement it
+to 0x0003 then execute the new instruction bz, which means branch if zero
+(branch if the z bit is set at the time we execute this instruction).
+We know that dec is an alu operation and the result of that operation
+modifies the status register.  If the result of the dec is a 0x0000 then
+the z bit is set, otherwise it is not.  So for the case where the result
+is 0x0003 the z flag is not set, and the branch does not happen.  What
+that means is you do not branch to the address specified you simply
+continue on to the next instruction in memory.  So for this case of the
+deci instruction resulting in 0x0003 we execute the next instruction
+which is an unconditional branch to lab01.
 
-This takes us back to show r6, and the decrement again.  This show and
-decrement loop continues until the dec instruction results in 0x0000. At
-that time the z bit is set and the bz branch to lab02 happens which
-takes us to an stw that shows r5 (0x1234).  We can see in the debug
-output belowthat the last show before showing r5 is a 0x0001.
+The unconditioal branch takes us back to show r6, and the decrement
+again.  This show and decrement loop continues until the dec instruction
+results in 0x0000. At that time the z bit is set and the bz branch to
+lab02 happens which takes us to an stw that shows r5 (0x1234).  We can
+see in the debug output below that the last show before showing r5 is a
+0x0001.
 
 show: 0x0004
 show: 0x0003
@@ -1474,96 +1498,21 @@ show: 0x0002
 show: 0x0001
 show: 0x1234
 
-So r6 was a 0x0001 and the dec made it a 0x0000, the z bit was set, the
-bz happened and 0x1234 was the next thing we see.
+So r6 was a 0x0001 and the dec instruction made it a 0x0000, the z bit
+was set, the bz happened and 0x1234 was the next thing we see.
 
-Normally you would use the bz to branch out of a loop when you have a
-number of things going on in the loop that need to branch out at
-multiple places.  For example this pseudo C code loop:
+Using a different instruction we can make that loop more efficient.  The
+bnz instruction means branch if not zero (branch if the zero flag is
+not set).
 
-while(ra)
-{
-   if(rb==17) break;
-   something;
-   something;
-   if(ra==rc) break;
-   something;
-   something;
-}
-
-The while loop itself might be encoded to end with an unconditional
-branch.  The comparisons in the middle would likely be encoded as
-something like:
-
-llz r8,17
-cmp r6,r8
-bz   out_of_the_while_loop
-
-Likewise, the ra == rc would probably be a cmp with a bz.
-
-The rest of the lesson shows how you could save an instruction and use a
-different unconditional branch.
-
-Same as the first loop we start with r6 = 0x0004, we decrement
-(r6 = 0x0003) but now we see bnz, which means branch if not zero or
-branch if zero bit is not set.  Well a 0x0003 is not a zero so the z
-bit was not set so for this case we branch because z is not set.  This
-continues until the dec result is a 0x0000 where the z bit is set, and
-branch if not zero does not branch we execute on to the stw.  The net
-result of the two loops is the same, one takes more code and more
-instructions.
-
-Optimizing compilers will quite often use a decrement and branch if not
-zero at the end of a loop, for example
-
-for(ra=0;ra<10;ra++)
-{
-    something;
-}
-
-You could create that loop different ways.
-
-llz r10,#0
-loop:
-    stuff
-    stuff
-    stuff
-    inc r10,r10
-    llz r11,#10
-    cmp r10,r11
-    bnz loop
-
-Another way, a little faster
-
-llz r10,#0
-llz r11,#10
-loop:
-    stuff
-    stuff
-    stuff
-    inc r10,r10
-    cmp r10,r11
-    bnz loop
-
-…and another way, a little faster, assuming ra is never used in the loop
-other than as a loop counter
-
-llz r10,#10
-loop:
-    stuff
-    stuff
-    stuff
-    dec r10,r10
-    bnz loop
-llz r10,#10
-
-Technically ra in the C code ends up as a 10.  If the program did not
-use ra after that loop or changed it without using it an optimizing
-compiler would remove that last r10 = 10 assignment and left the tight
-dec and bnz loop.  No two compilers or optimizers are the same though,
-so you may not actually see optimizations like this always happen.  You
-have to get familiar with each compiler if you care to examine things
-at this level.
+As with the first loop we start with r6 = 0x0004.  The dec instruction
+decrements r6 to 0x0003.  0x0003 is not 0x0000 so the z flag is not
+set after the dec instruction.  The bnz instruction says to branch
+if the z flag is not set, so it does, back to the to of the loop.  As
+with the other loop this continues until the dec instruction results
+in a zero, leaving the z bit set.  When the bnz instruction executes
+with the z bit set it does not branch, execution continues with the
+stw instruction after the bnz instruction.
 
 The full list of branch instructions are listed below.  Future lessons
 will get into the c and v bits in more detail.
@@ -1579,6 +1528,8 @@ bv  branch if signed overflow (v = 1)
 bnv branch if not signed overflow (v = 0)
 bsg signed greater than or equal (n .xor. v) = 0  (n == v)
 bsl signed less than             (n .xor. v) = 1  (n != v)
+
+
 
 
 ---------------------------------------------------------------------
@@ -1620,8 +1571,8 @@ This program uses the n flag for what it is, bit 15 of the result. Very
 similar to the prior lesson where we were counting down to zero this one
 goes one more time through the loop because from 0x0004 down to 0x0000
 bit 15 is not set, when we decrement from 0x0000 to 0xFFFF (a negative
-one).  We get bit 15 set and the bnn (branch if not negative, n bit = 0)
-does not happen.
+one).  We get bit 15 set and the bnn (branch if not negative, branch if
+n is not set) does not happen because the n bit is set.
 
 
 
@@ -1709,11 +1660,12 @@ Think about elementary school and you were learning to add.  And you
 would line up numbers like 97 + 5.  Add the ones column you get "two
 carry the one".  Then the tens column "zero carry the one" and that
 last one drops down for the hundreds column.  Well think about those
-carry bits taking you from one column to the next and think about not
-having enough digits to store every number you could think of.  Say you
-only had two digits, instead of 102 the answer would have been 02 with
-the carry bit set.  The carry bit indicating there was not enough room
-to store the whole number in the register/destination.
+carry bits taking you from one column to the next.  Unlike grade
+school imagine if there was a rule about the number of digits you had
+available to store the result.  If the rule was two digits and you
+tried to add 97 + 5 the result would be 04 but you would also have a
+carry bit in the status register indicating there was not enough
+room to store the complete answer in the register.
 
 Look at the program above, when we add 0x0001 to 0xFFFE we get 0xFFFF,
 and the carry bit is zero.  Next 0xFFFF + 0x0001 is really 0x10000 but
@@ -1721,19 +1673,29 @@ the registers are 16 bit so it is 0x0000 with the carry bit set.
 0x0000 + 0x0001 is 0x0001 no problem, no carry bit.
 
 The first decrement is a bit tricky and perhaps confusing.  Subtracting
-one is the same as adding a minus one.  And that is what the hardware
-does anyway.  We take the twos complement of 1 to get a minus one which
-is 0xFFFF.  So 0x0001 - 0x0001 is the same as 0x0001 + 0xFFFF and the
-result of that is 0x10000 or 0x0000 with the carry bit set.  After that
-0x0000 - 0x0001 is 0x0000 + 0xFFFF = 0xFFFF no problem, no carry.
+one is the same as adding a minus one.  Since processors normally use
+twos complement numbers, negating a number or "taking the twos complement"
+of the number means invert and add one.  So 0x0001 - 0x0001 is the same
+as 0x0001 + 0xFFFE + 1, and the result of that would normally be 0x10000
+but we only have 16 bits so the result is 0x0000 with the carry flag
+set.  We know that 1 - 1 = 0, it is interesting that the carry flag
+is set.  When we add the carry flag being set means we overflowed
+the (for unsigned numbers), when we subtract, the carry flag being set
+means we did not overflow the register (for unsigned numbers).  The next
+dec instruction takes the 0x0000 in the register and decrements.
+0x0000 - 0x0001 is the same as 0x0000 + 0xFFFE + 1 which is 0xFFFF with
+the carry bit clear.  0xFFFF decrements to 0xFFFE with no carry flag
+and so on.
 
 Just like that boundary between 99 and 00 in a two digit decimal world
-is where we would see the carry bit come in to play to indicate overflow
-(overflow of 99 to something it cannot store).  The boundary between
-0xFFFF and 0x0000 is where we overflow the register and have the carry
-bit come in to play.  And it is not just with increments of course,
-0xFFFF + 0xFFFF is 0x1FFFE or 0xFFFE with the carry bit set.
-0xFFFE + 0x0005 is 0x0003 with the carry bit set.
+is where we would see the carry bit or digit in that case want to
+go to the hundreds column.  In binary the boundary between the largest
+unsigned number 0xFFFF and the smallest unsigned number 0x0000 is where
+we will see the carry flag show some activity.  Not limited to the
+inc instruction, an add instruction or the other math instructions
+that dance around this boundary will cause changes in the carry flag.
+Bitwise logical operations like the dna instruction or xor instruction
+zero the carry flag because there is not much else they can do with it.
 
 
 
@@ -1819,24 +1781,27 @@ What does this program do?
 
 Just like the carry bit indicated unsigned addition (or subtraction)
 had overflowed the storage capabilities of a register, the v bit, the
-signed overflow indicates that an add or sub overflowed when the numbers
-are considered signed.
+signed overflow indicates that a math operation overflowed.  The c
+flag is used when the numbers are considered to be unsigned and the
+v flag is used when the numbers are considered to be signed.
 
-Considered signed, what does that mean?  Binary addition and subtraction
-logic does not care about signed numbers vs unsigned numbers.  That is
-the beauty of twos complement, it makes it so the math just works,
-period. (from a hardware perspective).
+Considered to be signed, what does that mean?  Binary addition and
+subtraction logic does not care about signed numbers vs unsigned numbers.
+That is the beauty of twos complement, it makes it so the math just works.
+(from a hardware perspective).
 
 Think about 0x0000 + 0xFFFF, that can be thought of as 0 plus 65535 or
 it could be thought of as 0 plus -1.  And in both cases the result is
 0xFFFF, which can be thought of as 65535 if the numbers are considered
-unsigned or -1 if the numbers are considered signed.
+unsigned or -1 if the numbers are considered signed.  The hardware
+takes the same operands 0x0000 and 0xFFFF and generates the same result
+0xFFFF, without caring if these are signed or unsigned numbers.
 
-So starting with 0x7FFE which is a 32766, we add one we get 0x7FFF or
-32767.  Add 0x7FFF + 0x0001 we get 0x8000 which is a -32768, note the
-sign changed, and note that the v bit was set on this one, we don’t
-have the ability to store a twos complement +32768 (+32767 + 0x0001)
-in 16 bits so we had a signed overflow.
+So this program starts with 0x7FFE which is a 32766, we add one we
+get 0x7FFF (32767).  Add 0x7FFF + 0x0001 we get 0x8000 which is a
+-32768, note the sign changed, and note that the v bit was set on this
+one, we don’t have the ability to store a twos complement +32768
+(+32767 + 0x0001) in 16 bits so we had a signed overflow.
 
 0x8000 + 0x0001 gives 0x8001 which is a -32767, no problem storing that
 one so the v bit is zero.  Now we go back the other way 0x8001 - 0x0001
@@ -1929,17 +1894,23 @@ show: 0x0003
 
 What does this program do?
 
-Compare
-First thing we do is a compare, which is the same as a subtract except
-it does not store the result anywhere, it just changes the flags.  (r10
-does not change with this cmp, if it had been sub r10,r11 it would have
-changed)
+First the program leads up to a cmp (compare) instruction.  Which is
+identical to a subtract except the result is discarded and the rd
+register unmodified.  Like a sub instruction it updates the flags.
 
-We do six comparisons.  The goal here is to figure out unsigned greater
-than, unsigned less than, unsigned greater than or equal, signed greater
-than, signed less than and signed greater than or equal.
+    sub r10,r11
 
-Thinking in terms of unsigned numbers
+Computes r10 - r11 and stores the result in r10.
+
+    cmp r10,r11
+
+Computes r10 - r11 but discards the mathematical result.
+
+This program performs six comparisons.  The goal here is to see if the
+conditional branch instructions make sense.  Branch if unsigned
+greater than or equal, signed less than, etc.
+
+Thinking in terms of unsigned numbers:
 
 0x0006 - 0x0005 v = 0, n = 0, c = 1, and z = 0  6 - 5
 0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1  5 - 5
@@ -1954,24 +1925,30 @@ Thinking in terms of unsigned numbers
 0x0006 - 0x0006 v = 0, n = 0, c = 1, and z = 1  6 - 6
 0xFFFB - 0xFFFB v = 0, n = 0, c = 1, and z = 1  65531 - 65531
 
-Branch if unsigned greater than or equal/ if unsigned less than
-Right off we see that the c bit indicates unsigned greater than or equal
-(the register on the left of the compare is unsigned greater than or
-equal to the register on the right).  So a bc, branch if carry set, is
-also the same as saying branch if unsigned greater than or equal. And
-bnc means branch if unsigned less than.
+The conditional branch, bc, branch if carry also says that it means
+branch if unsigned greater than or equal.  We see above that the c bit
+is set if rd >= rs.  It so far matches the claim.  This also means
+the bnc, branch if not carry, comment about branch if unsigned less than,
+is also true, if rd < rs the carry bit is clear for unsigned numbers.
 
-But what if we want just an unsigned greater than but not equal?  Well
-reverse the operands, if these compares were cmp r11,r10 then:
+Where is the branch if unsigned greater (but not equal) instruction?
+You dont need one, if
 
-0x0005 - 0x0006 v = 0, n = 0, c = 0, and z = 0
-0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1
-0x0005 - 0x0004 v = 0, n = 1, c = 1, and z = 0
+    cmp r2,r3
+    bnc somewhere
 
-So r10 greater than but not equal to r11 is the same as saying r11 is
-less than but not equal to r10, and we can use the carry bit (bnc).
+branches for an unsigned r2<r3.  And we want to figure out how to do an
+unsigned greater than but not equal to branch.  That means we want
+to know what to do when r2>r3.  Well we know how to handle r3<r2 right
+isnt that the same thing?
 
-Back to the code as written but thinking in terms of signed numbers
+    cmp r3,r2
+    bnc somewhere
+
+branches for an unsigned r3<r2, r2 is greater than but not equal
+to r3.
+
+Back to the program but thinking in terms of signed numbers
 
 0x0006 - 0x0005 v = 0, n = 0, c = 1, and z = 0  6 - 5
 0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1  5 - 5
@@ -1986,18 +1963,34 @@ Back to the code as written but thinking in terms of signed numbers
 0x0006 - 0x0006 v = 0, n = 0, c = 1, and z = 1  6 - 6
 0xFFFB - 0xFFFB v = 0, n = 0, c = 1, and z = 1  -5 - -5
 
-Branch if signed greater than (or equal)/ if signed less than
-This one is harder to see, the v and n bits are used.  When v and n are
-the same (both a 0 or both a 1) then you have a signed greater than or
-equal.  When v and n are different from each other you have a signed
-less than.  Since two flags are needed for this and they have to be
-compared to each other, two special instructions have been implemented
-one is the bsg, branch if signed greater than (or equal), and the other
-is bsl, branch if signed less than.
+These two instructions are in the list of conditional branches
 
-Just like the unsigned case if you are interested in signed greater than
-but not equal, then reverse the operands and look for a signed less than.
+bsg signed greater than or equal (n .xor. v) = 0  (n == v)
+bsl signed less than             (n .xor. v) = 1  (n != v)
 
+Does that match what we are seeing?  When n == v
+
+0x0006 - 0x0005 v = 0, n = 0, c = 1, and z = 0   6 - 5
+0x0005 - 0x0005 v = 0, n = 0, c = 1, and z = 1   5 - 5
+0x7FFF - 0x7FFF v = 0, n = 0, c = 1, and z = 1   32767 - 32767
+0x0006 - 0xFFFB v = 0, n = 0, c = 0, and z = 0   6 - -5
+0x0006 - 0x0006 v = 0, n = 0, c = 1, and z = 1   6 - 6
+0xFFFB - 0xFFFB v = 0, n = 0, c = 1, and z = 1  -5 - -5
+
+rd is a signed greater than or equal to rs.  And when n and v do not
+match:
+
+0x0004 - 0x0005 v = 0, n = 1, c = 0, and z = 0   4 - 5
+0x8000 - 0x7FFF v = 1, n = 0, c = 1, and z = 0  -32768 - 32767
+0x7FFE - 0x7FFF v = 0, n = 1, c = 0, and z = 0   32766 - 32767
+0xFFFB - 0x0006 v = 0, n = 1, c = 1, and z = 0  -5 - 6
+
+rd is signed less than rs.
+
+Just like with unsigned numbers, you do not need a signed greater than
+but not equal to instruction.  bsl branches when rd<rs which can
+be interpreted as rd is less than rs or rs is greater than (but not
+equal to) rd.
 
 
 
@@ -2038,22 +2031,37 @@ show: 0x1234
 What does this program do?
 
 Up until now the branch instructions we have been using were pc relative.
-Just like the lpc and spc instructions these branches took the current pc,
-and the instruction had a signed offset it added to the pc to compute the
-branch destination address (if the condition was true).  Unlike lpc and
-spc, the conditional branches can reach backward and forward as we have
-seen.  This gives them a limited range, in order to get a larger range
-all of the branch instructions have a version where a register is used
-to hold the destination address (if the condition is true).
+The destination address (if the branch occurs) is computed using the
+current value of the pc plus a signed constant encoded in the instruction.
+
+This is similar to the lpc and spc instructions except the branch
+instructions can branch forward or backward in the program.  But their
+range is limited.
+
+The solution for lpc or spc's limited reach was a two step approach
+lpc for example would be used to load something it was able to reach
+but that was actualy an address than an ldw used to perform a longer
+reach.
+
+The branch solution to the limited reach is basically the same, an
+lpc instruction is used to load an address into a register, the
+branch instruction uses that register as an operand instead of a
+label or constant.
 
 To implement this we have a loop that counts down, when it gets to zero
 we want to branch out of the loop with a bz.  In order to use a register
-branch in this way, then at some time before that instruction we have to
-place the address in that register.  In this case we have the assembler
-do the work for us, by using a word in memory to hold the address of
-lab02, we load the address of lab02 into register r8 using an lpc
-instruction.  When the time comes the bz r8 will branch to the address
-in r8 which is lab02.
+branch in this way, the registe bz is using must have had the desitnation
+register loaded into it.  These lines in the program result in
+
+    lpc r8,lab02add
+    ...
+lab02add: .word =lab02
+
+r8 containing the address to lab02.  If and when this branch
+
+    bz r8
+
+occurs the destination will be lab02.
 
 
 
@@ -2115,17 +2123,20 @@ What does this program do?
 
 This is an example of how you would implement a branch or jump table.
 Say for example you had a small, simple switch statement in C, you might
-implement it using a jump table.(provided the number of cases are small
+implement it using a jump table. (provided the number of cases are small
 enough to be practical and the case values are such that you can use
-simple math to uniquely identify which one).
+simple math to uniquely identify each item).
 
 This particular example assumes that r8 is one of the values 0, 1, 2,
 or 3.  We hard code r8 to a 0x02, but let’s pretend we didn’t know its
-value.  And r7 with a 3 so that we stay contained within our table. Get
-the address to the beginning of the table in r6, add r8 to that to get
-the address of the element in the table we are interested in.  Load that
-element in the table -into register r9- and then branch to the address
-in r9.
+value.  To make sure that r8 is limited to that range we use an
+and instruction with a 3.
+
+Next we get the address to the beginning of the table in r6, add r8 to
+r6 so that it holds the address of the item in the table we are interested
+in.  The load loads that item into r9.  And then the branch using r9
+branches to that address.  If you have made no programming mistakes you
+cannot get to the halt after b r9.
 
 Each of the four addresses contain code specific to that r8 input
 condition. That code is executed and converges on a common point to
@@ -2172,13 +2183,13 @@ show: 0x0005
 
 What does this program do?
 
-Swap
 The swap instruction swaps the contents of the two registers. Swap is
 not an alu operation so it does not modify the flags register (unless
 of course r1 is one of the registers).
 
-A move instruction simply moves (well actually it copies) the source
-contents to the destination.
+A mov instruction simply moves (well actually it copies) the source
+contents to the destination.  Unlike the swap instruction, the source
+register is not modified.
 
 There is a variant of the lsa processor that has up to 128 general
 purpose registers.  All instructions except for the mov instruction are
@@ -2197,9 +2208,10 @@ exactly how many before you use them.
 Many processors use the mov instruction for moving from register to
 register, immediate to register, memory to register, register to memory,
 etc.  And the syntax like brackets or pound signs, etc tell the assembler
-what flavor of mov instruction was desired.  The lsa processor forces
-you to specify what flavor of instruction you want as well as force the
-additional syntax like brackets and pound signs.
+what flavor of mov instruction was desired.  The lsa processor has
+separate instructions for loading immediates, loading and storing
+words from and to memory and copying the contents of one register to
+another.
 
 
 
@@ -2359,6 +2371,8 @@ bits of r5 are 0x4 which means we want to shift r6 right 4 bits.  This
 is a logical shift so zeros are shifted in from the top and the result
 is 0x0E40.
 
+The shift instructions (lsl, lsr, asr) do not modify the flags.
+
 
 
 
@@ -2496,8 +2510,8 @@ of r1, looks a bit scary to be messing with r1, but what that is doing
 is making the carry bit a known state, otherwise we start to rotate and
 whatever was left in the carry bit gets dragged into our register, we
 probably don’t want that.  An and r6,r6 (or any register with itself)
-would have done the same thing as an and clears the c and v bits no
-matter what the data is.
+would have done the same thing as an and instruction clears the c and v
+bits no matter what the data is.
 
 We can think of this two ways, think about shifting one bit at a time
 until we get the number of shifts, or think about chopping off the total
@@ -2522,6 +2536,9 @@ bit and the carry bit goes into bit 15.
 0 1000000000000010 shift 1
 
 And the result is 0x8002.
+
+The rol and ror instructions do not modify any flags.  The rrc and rlc
+modify the c flag but leave the other flags untouched.
 
 
 
@@ -2581,47 +2598,50 @@ What does this program do?
 The last of the three not so general purpose, general purpose registers,
 r2 is also known as the stack pointer.  You may have heard of the term
 stack from prior programming experience.  Putting things on the stack,
-etc.
+pushing things on the stack, popping them off.  Local variables live
+on the stack, that sort of thing.
 
-The stack is basically just memory, and often has a register reserved
-for it because often you have special functions that use that register.
-The lsa processor does have two instructions (lsp, ssp) that have r2
-hardcoded in the logic in the same way that lpc and spc have r0
-hardcoded.  That is not typical though.  What you typically see (in
-other processors) is some sort of push instruction and some sort of pop
-instruction being the instructions with the stack pointer hardcoded in
-the logic.
+The stack is just a name for some of the memory pointed to by the
+stack pointer.  Most processors have special push and pop instructions
+that have the stack pointer hardcoded as part of the function of
+the instruction.  The lsa processor does not need to have instructions
+like that as the normal instructions provide that functionality, the
+lsa processor instead has two special instructions (lsp, ssp) that
+have r2 hardcoded in the logic.  The lsp and ssp instructions are
+similar to lpc and spc except that the stack pointer is used as the
+base address instead of the program counter.
 
 Maybe you are not old enough to remember a time when almost everyone’s
 bathroom had a dixie cup dispenser.  Well imagine kid sized disposable
 paper cups (or plastic if it helps your visualization).  And a plastic
-cylinder holder that holds the cups leaving one cup visible sticking out
-the bottom.  If you pull that bottom cup out you get one cup and there
-is another one hanging there ready to be pulled out.  Now imagine those
-cups are memory locations in your stack.  If you want to save something
-temporarily, something that, for various reasons, does not need or want
-a permanent address.  Let’s say you have an operation that needs 7
-registers but you have used all but 5 and need to temporarily save the
-contents of two registers so you can have 7 available for this operation.
-Well you could put those registers "on the stack", using a push
-instruction, think of writing the value of the first register on a cup
-and pushing that cup up into the dixie cup holder.  Then writing the
-value of the second register on another cup and pushing that cup into
-the dixie cup holder, now you can use the 7 registers for your operation,
-when you are finished you can put those two registers back the way they
-were by popping the bottom cup (pulling it out of the holder) and looking
-at its contents and putting back into the SECOND register, the last thing
-you put on the stack.  Then pull (pop) what is now the bottom cup and put
-that in the FIRST register.  You basically borrowed two memory locations
-temporarily and the key is that you didn’t know, nor did you care how
-many cups were in the Dixie cup dispenser when you started, you pushed
-two cups up into the dispenser, then you removed two cups. You left it
-the way you found it.  What you did care about is the number of items
-pushed and the order you pushed them.  So that you can undo everything
-in reverse order.
+cylinder shaped holder that holds the cups leaving one cup visible
+sticking out the bottom.  If you pull that bottom cup out you get one
+cup and unless that was the last one the holder has the next cup sticking
+out the bottom ready to be pulled out.  Now imagine those cups are memory
+locations in your stack.  If you want to save something temporarily,
+something that, for various reasons, does not need or want a permanent
+address.  Let’s say you have an operation that needs 7 registers but you
+have used all but 5 and need to temporarily save the contents of two
+registers so you can have 7 total available for this operation.  Pushing
+two registers "on the stack" would be like writing the of the first
+register on a cup and pushing that cup up into the dixie cup holder.
+Then writing the value of the second register on another cup and pushing
+that cup into the dixie cup holder, now you can use the 7 registers for
+your operation,  when you are finished and need to restore those two
+registers you borrowed, you can put those two registers back by popping
+the bottom cup (pulling it out of the holder) and looking
+at its contents and using that to restore the SECOND register, the last
+thing you put on the stack.  Then pull (pop) what is now the bottom cup
+and put that in the FIRST register.  You basically borrowed two memory
+locations temporarily and the key is that you didn’t know, nor did you
+care how many cups were in the Dixie cup dispenser when you started,
+you pushed two cups up into the dispenser, then you removed two cups.
+You left it the way you found it.  What you did care about is the number
+of items pushed and the order you pushed them.  So that you can undo
+everything in reverse order.
 
 Hopefully that was not too confusing of a visualization.  To be more
-detailed, a “push”, on the lsa processor is a stw [--r2],rs, the stack
+specific, a “push”, on the lsa processor is a stw [--r2],rs, the stack
 pointer is decremented one word location, and the desired register is
 stored at that address.  A “pop” on the lsa processor is an
 ldw rd,[r2++], read the value at the address pointed to by r2, then
@@ -2632,8 +2652,8 @@ Assume r2 at the moment is at address X (other than initialization at
 boot time we don’t normally care exactly what the stack pointer value
 is) and we do this:
 
-    stw [--r2],r6     ; push, store r6 at address X-1
-    stw [--r2],r7     ; push, store r7 at address X-2
+    stw [--r2],r6   ; push, store r6 at address X-1
+    stw [--r2],r7   ; push, store r7 at address X-2
     llz r6,#0x55
     llz r7,#0x66
     ldw r7,[r2++]   ; pop, restore r7 from address X-2
@@ -2645,8 +2665,7 @@ When done using them we put them back the way we found them, same number
 of pops as pushes and in the reverse order.  When done r2, r6, and r7
 are back the way we found them.
 
-The lsa-as assembler has a nice labor saving feature(extra instruction).
-Instead of typing:
+The lsa-as assembler has a nice labor saving feature, instead of typing:
 
     stw [--r2],r6
 
