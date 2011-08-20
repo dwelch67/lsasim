@@ -18,6 +18,51 @@ make the learning process successful.  Since we do not all learn things
 the same way the presentation has to be averaged in some form.
 
 
+Why learn assembly language?
+
+Perhaps the best argument is that it will help a programmer better
+understand how a computer works. A few Universities still require
+students to take an assembly course for this reason. This understanding
+can help you write better programs. It will help you understand what
+higher level languages do. All programming languages essentially result
+in the generation of machine code. Assembly language is probably closer
+to machine code than any other language.
+
+What are the advantages of assembly language over other languages? The
+simple answer is speed, space and capability. In the early years of
+computing when programmers were working with a few megabytes of memory
+and relatively slow processors, speed and space demanded the use of
+assembly language. Programming languages have evolved to make it easier
+for the programmer to write programs. This has resulted in more overhead,
+slower execution and programs that consume large amounts of space. Of
+course processor speeds and memory capacity have correspondingly
+increased to accommodate these programs. This leaves capability. Assembly
+language can do some things that higher languages cannot (even now). The
+question is do you need to do these things. As a modern day programmer,
+probably not. This leaves understanding. By learning assembly language
+you learn the basic operations of computer processors and this will help
+you understand how programs work at the machine level.
+
+Despite what you may have heard, there was a time when there were
+accomplished assembly language programmers that could write a 16 megabyte
+program that would do the same thing that would take a high level
+language program of 200 megabytes or more to do. The other difference
+was the assembly program would do it in 1/5th the time. At one time
+the programmers who developed operating systems and higher level
+languages (Systems Programmers or Systems Developers) worked exclusively
+with assembly language.  I doubt that there are any of those assembly
+language programmers left still writing assembly code.
+
+It is important that you start with simpler processor instruction sets
+to learn assembly before you progress to more complex (not necessarily
+more powerful) processors such as the x86. So we have developed a tool
+that can be used to teach assembly language. This tool consists of a
+simulated (non-physical) processor, lsa-sim, and an associated
+“assembler”, lsa-as,  that we will use introduce you to the fundamentals
+of assembly language. Advance topics in assembly such as masking,
+instruction cpu cycles, optimization, packed data, logic design, etc.
+will not be taught here (at least not now).
+
 
 
 What asm is
@@ -1133,32 +1178,87 @@ in a .word definition means to the assembler "the address of"
 
 The value at the backward label will be the address of the label
 lesson08.  The assembler, lsa-as, takes care of filling in these numbers
-for you.
+for you.  The output of lsa-as, lesson08.s.csv if written exactly as
+above will be:
 
-    MEM,0x0002,0x8534,END,,
-    MEM,0x000B,0x0002,END,,
+MEM,0x0000,0xC001,END,,
+MEM,0x0001,0xC000,END,,
+MEM,0x0002,0x8534,END,,
+MEM,0x0003,0xB512,END,,
+MEM,0x0004,0x97FF,END,,
+MEM,0x0005,0x4758,END,,
+MEM,0x0006,0x0804,END,,
+MEM,0x0007,0x4980,END,,
+MEM,0x0008,0x4788,END,,
+MEM,0x0009,0x4798,END,,
+MEM,0x000A,0xFFFF,END,,
+MEM,0x000B,0x0002,END,,
+END,,
 
-For this program lesson08 is at address 0x0002 and backward is at
-address 0x000B.  And you can see that the instruction at address
-0x0002 is 0x8534, which is one of the values shown when running the
-simulator.
+This lines up with the program in this manner:
 
-Not only does this demonstrate how to load or store memory locations
-defined using labels behind the program counter, but it also
-demonstrates unlimited reach.  The lpc instruction is limited to 255
-instructions ahead, but the address stored in the variable at that
-location is a full 16 bit address, so any address in the processors
-memory space can be specified.  This two step approach allows you to
-reach any location in memory.
+MEM,0x0000,0xC001,END,,    b lesson08
+MEM,0x0001,0xC000,END,,    b lesson08
+                        lesson08:
+MEM,0x0002,0x8534,END,,    llz r5,#0x34
+MEM,0x0003,0xB512,END,,    lh  r5,#0x12
+MEM,0x0004,0x97FF,END,,    lhz r7,#0xFF
+MEM,0x0005,0x4758,END,,    stw [r7],r5
+MEM,0x0006,0x0804,END,,    lpc r8,backward
+MEM,0x0007,0x4980,END,,    ldw r9,[r8]
+MEM,0x0008,0x4788,END,,    stw [r7],r8
+MEM,0x0009,0x4798,END,,    stw [r7],r9
+MEM,0x000A,0xFFFF,END,,    halt
+MEM,0x000B,0x0002,END,, backward: .word =lesson08
+END,,
 
-Although most instruction sets do not limit you to forward only pc
-relative addressing, some of those processors require a similar two
-step approach and others that have variable length instructions
-provide similar functionality without the two step approach.  Sometimes
-the assembler allows you to use a common instruction name and a label
-and the assembler figures out if it is a far or near reaching instruction
-and ecodes it for you.  This can be good or bad depding on how much
-control you want over the instructions generated.
+The label lesson08 is at address 0x0002 in memory.  Lsa-as was asked
+to reserve a word (.word) containing the address to the lesson08 label
+(=lesson08).  The label backward shows up at address 0x000B, and it
+does contain the address for the lesson08 label, 0x0002.
+
+The lpc r8,backward instruction loads the contents of memory at the
+label backward, 0x0002, into r8.  The ldw r9,[r8] instruction uses
+the address 0x0002 and loads what is essentially the contents of memory
+at the lesson08 address into r9.  It would be the same as doing this
+
+  lpc r9,lesson08
+
+But lesson08 is at an address smaller than the lpc instruction, it is
+backward in memory and not allowed.  Lpc can only read from memory
+at addresses greater than the location where that lpc instruction lives.
+This lesson demonstrates how you get around that problem if you have
+a reason to reach a lower address.
+
+Now you ask, why would the lsa processor not allow for loading from
+memory at greater than or less than addresses?  That is the second
+part of this lesson.  Eight bits of the lpc instruction are used to
+provide a constant to be added to the program counter to compute the
+address being read from.  Most processors will use a twos complement
+number here giving -128 to +127 locations.  The way the lsa processor
+implements this gives 0 to 255 locations.  No matter how you implement
+this you are only able to reach a small percentage of memory away
+from the current instruction.  Useful programs are going to have
+more than 255 instructions so you are going to have to manage variables
+or memory locations shared by various parts of that code.
+
+Some instruction sets have a separate far load instruction which often
+encodes the whole address of what you are trying to load.  In the above
+case this would have essentially been load r9,[lesson08], and the
+assembler for that kind of instruction set would have basically encoded
+it as load r9,[0x0002].  That requires a varaible word length instruction
+set.
+
+For the instruction sets, like lsa, that do not have a far load, then
+you are required to use this two step, load the address from a location
+in memory then use that address to perform the load you were really
+interested in.  Choosing to allow a short forward and backward reach
+or allowing a longer forward only is a design choice and in this
+case the choice was forward only.  So the answer to the why not
+allow forward and backward loads using lpc is because this is a fixed
+word length instruction set, which means there is no way to have
+an immediate based far load instruction, -128 to +127 vs 0 to 255 would
+still require the code demonstrated in this example.
 
 
 
