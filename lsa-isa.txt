@@ -5,34 +5,41 @@ LSA RISC instruction set.
 
 
 Notation:
-rx =  register x where x = decimal number between 0-127
-rd = destination register
-rs = source register
-immed = immediate (integer constant)
-unsigned_immed = unsigned immediate (integer constant) positive only
-signed_immed = signed immediate (integer constant) can be positive or negative
-0x1234 = 0x indicates hex number
-alu = arithmetic logic unit
-pc = program counter
-sp = stack pointer
-n = negative flag bit
-z = zero flag bit
-c = carry flag bit
-v = overflow flag bit
-pop = take value off stack
-push = put value on stack
-[rx] = rx is used as an address in memory space
+rx             register x where x = decimal number between 0-127
+rd             destination register
+rs             source register
+immed          immediate (integer constant)
+unsigned_immed unsigned immediate (integer constant) positive only
+signed_immed   signed immediate (integer constant) can be positive or negative
+0x1234         0x indicates hex number
+alu            arithmetic logic unit
+pc             program counter
+sp             stack pointer
+n              negative flag bit
+z              zero flag bit
+c              carry flag bit
+v              overflow flag bit
+pop            take value off stack
+push           put value on stack
+[rx]           rx is used as an address in memory space
 
 
-RISC instruction set.  Instructions are fixed at 16 bits.
+The LSA processor features a load-store architecture RISC instruction
+set.  Registers, memory, and instructions are fixed at 16 bits.
 
-Memory uses up to a 16 bit address, and data is strictly 16 bits.
-Address 0x0000 is the first 16 bit data word, address 0x0001 is the
-next 16 bit data word, etc.  The term word refers to a 16 bit binary
-value.
 
-128 General Purpose Registers r0 - r127.  Three are special, the rest
-are general purpose.  All registers are 16 bit.
+The memory address space for the LSA processor is limited to
+16 bits.  Upper address space is normally used for access to
+peripherals.  The vector table starts at address 0x0000 and
+immediately after that sram.  Each memory location is 16 bits,
+address 0x0000 is the first 16 bit data word, 0x0001 is the
+next 16 bit data word, etc.  The term word refers to a 16 bit
+binary value.
+
+The LSA processor supports 16 general purpose registers, three
+of which are also special purpose.  High Registers can be
+added, extending to a maximum 128 registers.  All registers
+are 16 bit.
 
 Program Counter (r0)
 
@@ -61,8 +68,13 @@ Stack Pointer (r2)
 
 This register is the stack pointer.  Two instructions, lsp and ssp, are
 specific to r2 for reaching into the stack.  These instructions are
-designed for stacks that grown down.  There push instruction is encoded
-as stw [--r2],rs the pop instruction is ldw rd,[r2++].
+designed for stacks that grown down.  The LSA processor does not have
+opcodes for push and pop instructions as the stock store word and
+load word instructions can perform the same function when r2 is used
+
+stw [--r2],rs ; push register
+ldw rd,[r2++] ; pop register
+
 
 High Registers.
 
@@ -117,7 +129,6 @@ lpc rd,label_name
 
 rd = memory[sp+i]
 
-Note: i is not sign extended, it can only address forward
 
 lsp rd,#5
 lsp rd,#0x7
@@ -173,6 +184,13 @@ aaaa
 1111
 
 
+swap
+
+temp = rd
+rd = rs
+rs = temp
+
+
 
 0101 bbbb accccccc   mov to/from high register
 
@@ -183,8 +201,6 @@ a
 0 mov rb,rc
 1 mov rc,rb
 
-swap (swap halves)
-rd = (rs<<8)|(rs>>8)
 
 
 
