@@ -79,7 +79,7 @@ another, there should be no expectation that one syntax will resemble
 another.  Think about a door on a business or office building. It
 performs the same function, but think about how many different sizes,
 shapes and types (revolving, sliding, hinged, etc.) of doors there, are.
-</para>  
+</para>
 <para>
 Processors operate on bits and bytes known as machine code.  Although
 certainly possible to program in machine code, you would not want to
@@ -89,20 +89,20 @@ one relationship between an assembly language instruction and a machine
 instruction that the processor operates on.  The bits and bytes in the
 instruction are assembled based on information in the assembly language
 instruction.
-</para>  
+</para>
 <para>
 Assembly language programming involves more than just the assembly
 language instructions.  The program used to read and process an assembly
 language program, for lack of a better term, “assembler,” will require
 other information it needs to do its job.
-</para>  
+</para>
 <para>
 Unlike other programming languages, assembly language normally does
 not have an organization or standards body that carefully defines the
 rules of the language.  Normally, the company that invents the processor
 creates the initial assembly language, along with the machine code
 instructions, of course.
-</para>  
+</para>
 <para>
 A company that creates the assembler tool may support the original
 assembly language and add additional syntax to support the programmer
@@ -110,16 +110,16 @@ that does not translate to instructions (like a #define or #pragma in C
 for example). This is not a hard and fast rule. Sometimes the folks
 creating the assembler tool modify the original or create their own
 assembly language that translates to the same machine code instructions.
-</para>  
+</para>
 <para>
 The assembly language concept is so ungoverned that, the terms used here
-assembly language, machine language and assembler.  Those three terms can
-and have all be used to describe the programming language, the text you
-type in a file.  So it is hard to have any kind of discussion about the
-difference between the bits and bytes the processor runs on, the ASCII
-syntax you type in the file, and the program you run that reads that
-syntax and turns it into bits and bytes.
-</para>  
+assembly language, machine language and assembler; have all be used to
+describe the programming language (the text you type in a file).  So it
+is hard to have any kind of discussion about the difference between the
+ASCII syntax you type in the file, the bits and bytes the processor runs
+on, and the program you want to run that reads that syntax and turns
+it into bits and bytes.
+</para>
 <para>
 The good news though, is once you learn asm for one processor, asm for
 another is much easier to pick up.  If you choose to continue to learn
@@ -128,7 +128,7 @@ much easier.  Both assembly languages and other programming languages
 become easier to learn once you understand how the processor really
 operates, and are able to break programming problems down into very
 small sequences of steps.
-</para>  
+</para>
   </section>
   <section><title>What Assembly Language is Not</title>
 <para>
@@ -184,7 +184,7 @@ Just like unique variable names in a C program this gives us 128
 unique register names.
 </para>
 <para>
-rd or rs in an instruction refers to the source register and the
+rs or rd in an instruction refers to the source register and the
 destination register.  The source register us normally read but not
 modified by an instruction, where the destination is normally both
 read as an input to the instruction, but is also modified by that
@@ -277,7 +277,7 @@ Other C language symbols are used as well:
 -- = decrement
 = (in label instruction) = “the address of”
 </screen>
-  </section>  
+  </section>
   <section><title>Instruction set</title>
 <para>
 The lsa instruction set is defined in the file lsa-isa.txt.  These
@@ -673,8 +673,8 @@ r7=(unsigned short *)0xFF00;
 </screen>
   </section>
  </section>
- 
- 
+
+
  <section><title>Lesson 3: Simple Loads and Stores</title>
   <section><title>Code</title>
 <screen>
@@ -692,7 +692,7 @@ r7=(unsigned short *)0xFF00;
 11:   stw [r7],r9
 12:   halt
 ---- lesson03 ----
-</screen>  
+</screen>
   </section>
   <section><title>Output</title>
 <screen>
@@ -1431,7 +1431,7 @@ The second operation is the dna instruction.  The dna instruction is
 like an and instruction except the source bits are inverted before
 the and operation happens.  The and, dna, or, xor, and tst instructions
 are logical, bitwise, operations.  Which means bit 0 of one operand
-and bit 0 of the other operand are computed to create bit 0 of the.
+and bit 0 of the other operand are computed to create bit 0 of the result.
 The truth table for the logical and operation and logical dna operation
 are shown to understand how the dna operation compares to an and operation.
 </para>
