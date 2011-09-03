@@ -10,12 +10,8 @@ lsa.v : lsa.cdl
 
 clean :
 	rm -rf obj_dir
-	rm -f lsa.v
 	rm -f test.vcd
 	rm -f *.s.csv
 	rm -f *.s.o
 
-
-test.vcd : obj_dir/Vlsa
-	./obj_dir/Vlsa
 
