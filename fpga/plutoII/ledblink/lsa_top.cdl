@@ -1,0 +1,102 @@
+
+extern module lsa_core
+(
+    clock          clock_in,
+    input  bit     reset_in,
+
+    input  bit[16] mem_in,
+    output bit[16] mem_out,
+    output bit[16] mem_add,
+    output bit[1]  mem_oe,
+    output bit[1]  mem_we,
+    output bit[1]  mem_fetch
+)
+{
+    timing to rising clock clock_in reset_in;
+    timing to rising clock clock_in mem_in;
+    timing from rising clock clock_in mem_out;
+    timing from rising clock clock_in mem_add;
+    timing from rising clock clock_in mem_oe;
+    timing from rising clock clock_in mem_we;
+    timing from rising clock clock_in mem_fetch;
+}
+
+extern module lsa_mem
+(
+    clock          clock_in,
+    input  bit     reset_in,
+
+    input  bit[16] mem_in,
+    input  bit[16] mem_add,
+    input  bit[1]  mem_oe,
+    input  bit[1]  mem_we,
+    input  bit[1]  mem_fetch,
+    output bit[16] mem_out,
+    output bit[1]  mem_led_out
+)
+{
+    timing to rising clock clock_in reset_in;
+    timing to rising clock clock_in mem_in;
+    timing to rising clock clock_in mem_add;
+    timing to rising clock clock_in mem_oe;
+    timing to rising clock clock_in mem_we;
+    timing to rising clock clock_in mem_fetch;
+    timing from rising clock clock_in mem_out;
+    timing from rising clock clock_in mem_led_out;
+}
+
+module brave
+(
+    clock          in_clock,
+    input  bit     in_reset,
+    output bit     out_led_out
+)
+{
+    default clock in_clock ;
+    default reset active_low in_reset ;
+
+
+    net bit[1]  net_output_enable;
+    net bit[1]  net_write_enable;
+    net bit[16] net_address;
+    net bit[16] net_in_data;
+    net bit[1]  net_fetch;
+    net bit[16] net_out_data;
+
+    net bit[1] net_led_out;
+
+
+    the_code:
+    {
+        lsa_core lsa_core0
+        (
+            clock_in    <- in_clock,
+            reset_in    <= in_reset,
+
+            mem_in      <= net_out_data,
+            mem_add     => net_address,
+            mem_oe      => net_output_enable,
+            mem_we      => net_write_enable,
+            mem_fetch   => net_fetch,
+            mem_out     => net_in_data
+        );
+
+        lsa_mem lsa_mem0
+        (
+            clock_in    <- in_clock,
+            reset_in    <= in_reset,
+
+            mem_in      <= net_in_data,
+            mem_add     <= net_address,
+            mem_oe      <= net_output_enable,
+            mem_we      <= net_write_enable,
+            mem_fetch   <= net_fetch,
+            mem_out     => net_out_data,
+            mem_led_out => net_led_out
+        );
+
+        out_led_out = net_led_out;
+
+    }
+}
+
