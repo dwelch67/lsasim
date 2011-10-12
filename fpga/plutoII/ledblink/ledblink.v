@@ -19,7 +19,7 @@ output LED;
     end
 
 
-    brave lsa_top0
+    lsa_top lsa_top0
     (
         .in_clock(clk),
         .in_reset(counter[7]),

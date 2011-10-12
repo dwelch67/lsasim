@@ -51,6 +51,7 @@ module lsa_core
     reg [16:0]op_b;
     reg [16:0]op_a;
     reg [1:0]xstate_next;
+    reg [15:0]pc_temp;
     reg [15:0]pc_next;
 
     //b Internal nets
@@ -80,6 +81,7 @@ module lsa_core
         reg__value[15] )
     begin: the_code__comb_code
     reg [15:0]pc_next__var;
+    reg [15:0]pc_temp__var;
     reg mem_oe__var;
     reg mem_we__var;
     reg [15:0]mem_add__var;
@@ -90,6 +92,7 @@ module lsa_core
     reg [16:0]op_res__var;
     reg [1:0]xstate_next__var;
         pc_next__var = 16'h0;
+        pc_temp__var = 16'h0;
         mem_oe__var = 1'h0;
         mem_we__var = 1'h0;
         mem_add__var = 16'h0;
@@ -190,15 +193,17 @@ module lsa_core
                 case (inst[11:8]) //synopsys parallel_case
                 4'h0: // req 1
                     begin
-                    mem_add__var = (reg__value[0]+{{{{{{{{inst[7],inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7:0]});
-                    pc_next__var = ((reg__value[0]+{{{{{{{{inst[7],inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7:0]})+16'h1);
+                    pc_temp__var = (reg__value[0]+{{{{{{{{inst[7],inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7:0]});
+                    mem_add__var = pc_temp__var;
+                    pc_next__var = (pc_temp__var+16'h1);
                     end
                 4'h2: // req 1
                     begin
                     if ((reg__value[1][0]==1'h0))
                     begin
-                        mem_add__var = (reg__value[0]+{{{{{{{{inst[7],inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7:0]});
-                        pc_next__var = ((reg__value[0]+{{{{{{{{inst[7],inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7:0]})+16'h1);
+                        pc_temp__var = (reg__value[0]+{{{{{{{{inst[7],inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7]},inst[7:0]});
+                        mem_add__var = pc_temp__var;
+                        pc_next__var = (pc_temp__var+16'h1);
                     end //if
                     end
                 default: // req 1
@@ -213,6 +218,7 @@ module lsa_core
             end
         endcase
         pc_next = pc_next__var;
+        pc_temp = pc_temp__var;
         mem_oe = mem_oe__var;
         mem_we = mem_we__var;
         mem_add = mem_add__var;

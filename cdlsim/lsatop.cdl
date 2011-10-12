@@ -57,7 +57,7 @@ module lsatop
     net bit[16] net_in_data;
     net bit[16] net_out_data;
 
-    msptop_code:
+    lsatop_code:
     {
         csram mem
         (

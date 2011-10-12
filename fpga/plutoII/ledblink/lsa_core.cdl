@@ -26,7 +26,7 @@ module lsa_core
     default reset active_low reset_in ;
 
     comb    bit[16] pc_next;
-    //comb    bit[16] pc_temp;
+    comb    bit[16] pc_temp;
     //comb    bit[1]  tbit;
     //comb    bit[16] tword;
 
@@ -46,7 +46,7 @@ module lsa_core
     the_code:
     {
         pc_next = 0x0000;
-        //pc_temp = 0x0000;
+        pc_temp = 0x0000;
         mem_oe = 0;
         mem_we = 0;
         mem_add = 0x0000;
@@ -859,12 +859,9 @@ module lsa_core
                             case 4b0000:
                             {
                                 //0000 b
-                                //pc_temp = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
-                                //mem_add = pc_temp;
-                                //pc_next = pc_temp + 1;
-                                //pc_temp = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
-                                mem_add = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
-                                pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]) + 1;
+                                pc_temp = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                mem_add = pc_temp;
+                                pc_next = pc_temp + 1;
                             }
                             //case 4b0001:
                             //{
@@ -881,13 +878,9 @@ module lsa_core
                                 //0010 bnz
                                 if(reg[1].value[ZBIT] == 0)
                                 {
-                                    //pc_temp = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
-                                    //mem_add = pc_temp;
-                                    //pc_next = pc_temp + 1;
-
-                                    //pc_temp = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
-                                    mem_add = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
-                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]) + 1;
+                                    pc_temp = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                    mem_add = pc_temp;
+                                    pc_next = pc_temp + 1;
                                 }
                             }
                             //case 4b0011:

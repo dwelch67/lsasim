@@ -45,7 +45,7 @@ extern module lsa_mem
     timing from rising clock clock_in mem_led_out;
 }
 
-module brave
+module lsa_top
 (
     clock          in_clock,
     input  bit     in_reset,

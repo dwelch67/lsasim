@@ -1,8 +1,8 @@
 //a Note: created by CDL 1.3.6 - do not hand edit without recognizing it will be out of sync with the source
 // Output mode 0 (VMOD=1, standard verilog=0)
 
-//a Module brave
-module brave
+//a Module lsa_top
+module lsa_top
 (
     in_clock,
 
@@ -68,4 +68,4 @@ module brave
         out_led_out = net_led_out;
     end //always
 
-endmodule // brave
+endmodule // lsa_top
