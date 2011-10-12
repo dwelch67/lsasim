@@ -1,0 +1,43 @@
+
+Been trying to get a version of the lsa processor into a programmable
+device.  Perhaps my code is too innefficient or bulky.  I dont claim to
+be an expert at RTL, probably obvious to the casual observer.
+
+Anyway, I have a Pluto-II from knjn:
+http://www.knjn.com/FPGA-RS232.html
+
+Many folks boycott their products because they do not provide schematics,
+I am still on the fence, they are more helpful in other ways than other
+vendors.  What is nice is that they are inexpensive and simple, the
+serial port interface makes it easy to program, no jtag or anything
+else fancy.  Their generic serial routine for programming I turned into
+a Linux command line version so I dont have to run Windows in vmware
+just to program the board.
+
+I took the cdl version of the lsa processor and it was just way too
+big to fit, so I removed all the instructions I was not using and it
+easily fit.  The program is hardcoded into the rtl, think of it as
+being in prom and the only ram is the registers themselves.  Works
+fine so far.
+
+I added/changed the peripheral.  When you write to 0xF100 one of the
+bits is tied to the led.  There is a serial port output on this fpga
+board and perhaps I will hook the serial port up to the lsa processor
+next.
+
+I synthesized a reset, not comfortable without one and cdl wanted one
+so that is that.  The core, generic rtl is wrapped by a little verilog,
+ledblink.v.
+
+The quartus web version is a free download from Altera, no license
+keys or anything it just runs.  Software folks find these tools a
+royal pain to use, all the warnings and messages that good software
+and good compilers resolve.  Like other hardware folks I gave up chasing
+my tail trying to remove all the warnings.  Will try again some day.
+Altera, Lattice and Xilinx have Linux tools.  Xilinx being the most
+painful, but does work on Ubuntu.  Lattice is picky as to what linux
+it wants to run on so have to suffer with a slow Windows on vmware.
+Vmware is maturing very nicely though, the usb devices, programmers, etc
+pass right through into windows no problem and windows can manage them.
+Altera's quartus installs just fine on Ubuntu and runs just fine not
+being behind a vm the project builds relatively fast
