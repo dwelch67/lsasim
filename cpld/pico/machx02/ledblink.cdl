@@ -1,0 +1,59 @@
+
+
+extern module lsa_top
+(
+    clock          in_clock,
+    input  bit     in_reset,
+    output bit[8]  out_led_out
+)
+{
+    timing to rising clock in_clock in_reset;
+    timing from rising clock in_clock out_led_out;
+}
+
+module ledblink
+(
+    clock clock_in,
+    input bit reset_in,
+    output bit uart_out,
+    output bit led_out
+)
+{
+    default clock clock_in ;
+    default reset active_low reset_in ;
+
+    clocked bit[11] ucount = 0;
+    clocked bit[12] ushift = 0xFFF;
+
+    clocked bit[1] ustate = 0;
+
+    net bit[8] net_led_out;
+
+    the_code:
+    {
+        if(ucount == 0x4E1) //9600 baud from 12MHz
+        {
+            ucount <= 0;
+            ushift[11;0] <= ushift[11;1];
+            ushift[11] <= 1;
+        }
+        else
+        {
+            ucount <= ucount + 1;
+        }
+        uart_out = ushift[0];
+
+        lsa_top lsa_top0
+        (
+            in_clock <- clock_in,
+            in_reset <= reset_in,
+            out_led_out => net_led_out
+        );
+        if(net_led_out[4] != ustate )
+        {
+            ushift <= 12b11_00110000_01;
+            ustate <= net_led_out[4];
+        }
+        led_out = net_led_out[4];
+    }
+}

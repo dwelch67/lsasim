@@ -1,0 +1,89 @@
+
+
+extern module lsa_mem
+(
+    clock          clock_in,
+    input  bit     reset_in,
+
+    input  bit[16] mem_in,
+    input  bit[16] mem_add,
+    input  bit[1]  mem_oe,
+    input  bit[1]  mem_we,
+    input  bit[1]  mem_fetch,
+    output bit[16] mem_out,
+    output bit[8]  mem_led_out
+)
+{
+    timing to rising clock clock_in reset_in;
+    timing to rising clock clock_in mem_in;
+    timing to rising clock clock_in mem_add;
+    timing to rising clock clock_in mem_oe;
+    timing to rising clock clock_in mem_we;
+    timing to rising clock clock_in mem_fetch;
+    timing from rising clock clock_in mem_out;
+    timing from rising clock clock_in mem_led_out;
+}
+
+
+typedef struct
+{
+   bit[16] value;
+} mem_type;
+
+module lsa_mem
+(
+    clock          clock_in,
+    input  bit     reset_in,
+
+    input  bit[16] mem_in,
+    input  bit[16] mem_add,
+    input  bit[1]  mem_oe,
+    input  bit[1]  mem_we,
+    input  bit[1]  mem_fetch,
+    output bit[16] mem_out,
+    output bit[8]  mem_led_out
+)
+{
+    default clock clock_in ;
+    default reset active_low reset_in ;
+
+    clocked bit[8] led_out_bits = 0;
+
+    the_code:
+    {
+        mem_out = 0xFFFF;
+        if(mem_oe == 1b1)
+        {
+            full_switch(mem_add)
+            {
+
+case 16h0000: { mem_out = 0xC001; }
+case 16h0001: { mem_out = 0xC000; }
+case 16h0002: { mem_out = 0x97F1; }
+case 16h0003: { mem_out = 0x8500; }
+case 16h0004: { mem_out = 0x8800; }
+case 16h0005: { mem_out = 0x8910; }
+case 16h0006: { mem_out = 0x6889; }
+case 16h0007: { mem_out = 0xC2FE; }
+case 16h0008: { mem_out = 0x6999; }
+case 16h0009: { mem_out = 0xC2FC; }
+case 16h000A: { mem_out = 0x8910; }
+case 16h000B: { mem_out = 0x6558; }
+case 16h000C: { mem_out = 0x4758; }
+case 16h000D: { mem_out = 0xC0F8; }
+
+default: { mem_out = 0xFFFF; }
+            }
+        }
+
+        if(mem_we==1b1)
+        {
+            if(mem_add == 0xF100)
+            {
+                led_out_bits <= ~mem_in[8;0];
+            }
+        }
+        mem_led_out = led_out_bits;
+    }
+}
+

@@ -1,0 +1,6 @@
+BLOCK RESETPATHS ;
+BLOCK ASYNCPATHS ;
+LOCATE COMP "clock_in" SITE "A7" ;
+LOCATE COMP "reset_in" SITE "N3" ;
+LOCATE COMP "led_out" SITE "D1" ;
+LOCATE COMP "uart_out" SITE "E2" ;
