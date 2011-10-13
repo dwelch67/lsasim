@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BaliProject version="1.3" title="machx02" device="LFXP2-5E-5TN144C" default_implementation="machx02">
+    <Options/>
+    <Implementation title="machx02" dir="machx02" description="machx02" default_strategy="Strategy1">
+        <Options/>
+        <Source name="ledblink.v" type="Verilog" type_short="Verilog">
+            <Options/>
+        </Source>
+        <Source name="lsa_core.v" type="Verilog" type_short="Verilog">
+            <Options/>
+        </Source>
+        <Source name="lsa_mem.v" type="Verilog" type_short="Verilog">
+            <Options/>
+        </Source>
+        <Source name="lsa_top.v" type="Verilog" type_short="Verilog">
+            <Options/>
+        </Source>
+        <Source name="machx02.lpf" type="Logic Preference" type_short="LPF">
+            <Options/>
+        </Source>
+    </Implementation>
+    <Strategy name="Strategy1" file="Strategy1.sty"/>
+</BaliProject>
