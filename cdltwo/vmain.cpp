@@ -12,7 +12,10 @@ VerilatedVcdC *trace;
 int main ( void )
 {
     unsigned int tick;
+    unsigned int halt_count;
     int ret;
+
+    halt_count=0;
 
     Verilated::traceEverOn(true);
 
@@ -34,6 +37,33 @@ int main ( void )
         top->in_clock = (tick & 1);
         top->eval();
         trace->dump(tick);
+
+if(top->v__DOT__mem_wr)
+{
+    if(top->in_clock == 1)
+    {
+        //printf("[0x%04X] 0x%08X\n",top->v__DOT__mem_add,top->v__DOT__mem_wdata);
+        if(top->v__DOT__mem_add==0xFF00)
+        {
+            printf("show: 0x%04X\n",top->v__DOT__mem_wdata);
+        }
+    }
+}
+
+if(top->v__DOT__astate==0xF)
+{
+    if(tick>11)
+    {
+        if(halt_count==0) halt_count=10;
+    }
+}
+if(halt_count)
+{
+    if(halt_count==1) break;
+    halt_count--;
+}
+
+
         if(tick>772000) break;
     }
     trace->close();

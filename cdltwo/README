@@ -2,3 +2,6 @@
 Reworking the RTL to use a little different, hopefully more obvious,
 state machine.
 
+There is no ram at this time, only extended registers.  Consider the
+program to be rom based.
+
