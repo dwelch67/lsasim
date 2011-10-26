@@ -1,0 +1,1184 @@
+
+
+constant integer STATE_NONE     = 0;
+constant integer STATE_RESET    = 1;
+constant integer STATE_FETCH    = 2;
+constant integer STATE_DECODE   = 3;
+constant integer STATE_STORE    = 4;
+constant integer STATE_LOAD     = 5;
+
+
+constant integer STATE_HALT     = 15;
+
+
+constant integer VBIT = 3;
+constant integer NBIT = 2;
+constant integer CBIT = 1;
+constant integer ZBIT = 0;
+
+typedef struct
+{
+   bit[16] value;
+} reg_type;
+
+module lsa_core
+(
+    clock          in_clock,
+    input  bit     in_reset
+)
+{
+    default clock in_clock ;
+    default reset active_low in_reset ;
+
+    clocked reg_type[32] reg = {{value=0}};
+
+    comb bit[16] pc_next;
+
+    clocked bit[4] astate = STATE_NONE;
+    comb bit[4] astate_next;
+
+    clocked bit[16] inst = 0;
+
+    comb bit[17] op_a;
+    comb bit[17] op_b;
+    comb bit[17] op_res;
+
+    comb bit[4]  shift_amt;
+    comb bit[16] tword;
+    comb bit[1]  tbit;
+
+    comb bit[16] mem_add;
+    comb bit[16] mem_rdata;
+    comb bit[16] mem_wdata;
+    comb bit[1]  mem_wr;
+    comb bit[1]  mem_rd;
+    comb bit[1]  mem_fetch;
+
+    clocked bit[8] leds = 0x00;
+
+    the_mem:
+    {
+        mem_rdata = 0x0000;
+        if(mem_rd == 1b1)
+        {
+            full_switch(mem_add)
+            {
+
+include "program.cdl"
+
+                default:
+                {
+                    mem_rdata = 0x0000;
+                }
+            }
+        }
+        if(mem_wr == 1)
+        {
+            full_switch(mem_add)
+            {
+                case 0xF100:
+                {
+                    leds <= mem_wdata[8;0];
+                }
+                default:
+                {
+                }
+            }
+        }
+
+    }
+
+    the_code:
+    {
+        mem_add   = 0x0000;
+        mem_wdata = 0x0000;
+        mem_wr    = 0;
+        mem_rd    = 0;
+        mem_fetch = 0;
+        astate_next = astate;
+        pc_next = reg[0].value;
+        tbit = 0;
+        shift_amt = 0;
+
+        full_switch(astate)
+        {
+            case STATE_NONE:
+            {
+                astate_next = STATE_RESET;
+            }
+            case STATE_RESET:
+            {
+                pc_next = 0x0000;
+                astate_next = STATE_FETCH;
+            }
+            case STATE_FETCH:
+            {
+                pc_next = reg[0].value + 1;
+                mem_add = reg[0].value;
+                mem_fetch = 1;
+                mem_rd = 1;
+                inst <= mem_rdata;
+                astate_next = STATE_DECODE;
+            }
+            case STATE_DECODE:
+            {
+                astate_next = STATE_HALT;
+                full_switch(inst[4;12])
+                {
+                    case 4b0000: //lpc
+                    {
+                        //0000 dddd iiiiiiii   load pc relative
+                        astate_next = STATE_LOAD;
+                        mem_add = reg[0].value + bundle(8b00000000,inst[8;0]);
+                        mem_rd = 1;
+                        //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                    }
+                    case 4b0001: //lsp
+                    {
+                        //0001 dddd iiiiiiii   load sp relative
+                        astate_next = STATE_LOAD;
+                        mem_add = reg[2].value + bundle(8b00000000,inst[8;0]);
+                        mem_rd = 1;
+                        //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                    }
+                    case 4b0010: //spc
+                    {
+                        //0010 ssss iiiiiiii   store pc relative
+                        astate_next = STATE_STORE;
+                        mem_add = reg[0].value + bundle(8b00000000,inst[8;0]);
+                        mem_wr = 1;
+                        mem_wdata = reg[bundle(1b0,inst[4;8])].value;
+                    }
+                    case 4b0011: //ssp
+                    {
+                        //0011 ssss iiiiiiii   store sp relative
+                        astate_next = STATE_STORE;
+                        mem_add = reg[2].value + bundle(8b00000000,inst[8;0]);
+                        mem_wr = 1;
+                        mem_wdata = reg[bundle(1b0,inst[4;8])].value;
+                    }
+                    case 4b0100:
+                    {
+                        //0100 dddd ssss aaaa  load/store
+                        full_switch(inst[4;0])
+                        {
+                            case 4b0000:
+                            {
+                                //0000 ldw rd,[rs]
+                                astate_next = STATE_LOAD;
+                                mem_add = reg[bundle(1b0,inst[4;4])].value;
+                                mem_rd = 1;
+                                //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                            }
+                            case 4b0001:
+                            {
+                                //0001 ldw rd,[rs++]
+                                astate_next = STATE_LOAD;
+                                mem_add = reg[bundle(1b0,inst[4;4])].value;
+                                mem_rd = 1;
+                                //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                                reg[bundle(1b0,inst[4;4])].value <= reg[bundle(1b0,inst[4;4])].value + 1;
+                            }
+                            case 4b0010:
+                            {
+                                //0010 ldw rd,[++rs]
+                                astate_next = STATE_LOAD;
+                                mem_add = reg[bundle(1b0,inst[4;4])].value + 1;
+                                mem_rd = 1;
+                                //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                                reg[bundle(1b0,inst[4;4])].value <= reg[bundle(1b0,inst[4;4])].value + 1;
+                            }
+                            case 4b0011:
+                            {
+                                //0011 ldw rd,[rs--]
+                                astate_next = STATE_LOAD;
+                                mem_add = reg[bundle(1b0,inst[4;4])].value;
+                                mem_rd = 1;
+                                //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                                reg[bundle(1b0,inst[4;4])].value <= reg[bundle(1b0,inst[4;4])].value - 1;
+                            }
+                            case 4b0100:
+                            {
+                                //0100 ldw rd,[--rs]
+                                astate_next = STATE_LOAD;
+                                mem_add = reg[bundle(1b0,inst[4;4])].value - 1;
+                                mem_rd = 1;
+                                //reg[bundle(1b0,inst[4;8])].value <= mem_rdata_not;
+                                reg[bundle(1b0,inst[4;4])].value <= reg[bundle(1b0,inst[4;4])].value - 1;
+                            }
+                        //0101
+                            case 4b0110:
+                            {
+                                //0110 mov rd,rs
+                                astate_next = STATE_FETCH;
+                                reg[bundle(1b0,inst[4;8])].value <= reg[bundle(1b0,inst[4;4])].value;
+                            }
+                        //0111
+                            case 4b1000:
+                            {
+                                //1000 stw [rd]  ,rs
+                                astate_next = STATE_STORE;
+                                mem_add = reg[bundle(1b0,inst[4;8])].value;
+                                mem_wr = 1;
+                                mem_wdata = reg[bundle(1b0,inst[4;4])].value;
+                            }
+                            case 4b1001:
+                            {
+                                //1001 stw [rd++],rs
+                                astate_next = STATE_STORE;
+                                mem_add = reg[bundle(1b0,inst[4;8])].value;
+                                mem_wr = 1;
+                                mem_wdata = reg[bundle(1b0,inst[4;4])].value;
+                                reg[bundle(1b0,inst[4;8])].value <= reg[bundle(1b0,inst[4;8])].value + 1;
+                            }
+                            case 4b1010:
+                            {
+                                //1010 stw [++rd],rs
+                                astate_next = STATE_STORE;
+                                mem_add = reg[bundle(1b0,inst[4;8])].value + 1;
+                                mem_wr = 1;
+                                mem_wdata = reg[bundle(1b0,inst[4;4])].value;
+                                reg[bundle(1b0,inst[4;8])].value <= reg[bundle(1b0,inst[4;8])].value + 1;
+                            }
+                            case 4b1011:
+                            {
+                                //1011 stw [rd--],rs
+                                astate_next = STATE_STORE;
+                                mem_add = reg[bundle(1b0,inst[4;8])].value;
+                                mem_wr = 1;
+                                mem_wdata = reg[bundle(1b0,inst[4;4])].value;
+                                reg[bundle(1b0,inst[4;8])].value <= reg[bundle(1b0,inst[4;8])].value - 1;
+                            }
+                            case 4b1100:
+                            {
+                                //1100 stw [--rd],rs
+                                astate_next = STATE_STORE;
+                                mem_add = reg[bundle(1b0,inst[4;8])].value - 1;
+                                mem_wr = 1;
+                                mem_wdata = reg[bundle(1b0,inst[4;4])].value;
+                                reg[bundle(1b0,inst[4;8])].value <= reg[bundle(1b0,inst[4;8])].value - 1;
+                            }
+                        //1101
+                            case 4b1110:
+                            {
+                                //1110 swap rd,rs
+                                astate_next = STATE_FETCH;
+                                tword = reg[bundle(1b0,inst[4;8])].value;
+                                reg[bundle(1b0,inst[4;8])].value <= reg[bundle(1b0,inst[4;4])].value;
+                                reg[bundle(1b0,inst[4;4])].value <= tword;
+                            }
+                        //1111
+                            default:
+                            {
+                                astate_next = STATE_HALT;
+                            }
+                        }
+                    }
+                    case 4b0101:
+                    {
+                        //0101 bbbb accccccc   mov to/from high register
+                        astate_next = STATE_FETCH;
+                        full_switch(inst[7])
+                        {
+                            case 1b0:
+                            {
+                                reg[bundle(1b0,inst[4;8])].value <= reg[inst[5;0]].value;
+                            }
+                            default:
+                            {
+                                reg[inst[5;0]].value <= reg[bundle(1b0,inst[4;8])].value;
+                            }
+                        }
+                    }
+                    case 4b0110:
+                    {
+                        //0110 dddd ssss aaaa  alu operation
+                        astate_next = STATE_FETCH;
+                        full_switch(inst[4;0])
+                        {
+                            case 4b0000:
+                            {
+                                //0000 add rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a + op_b;
+                                reg[1].value[CBIT] <= op_res[16];
+                                reg[1].value[NBIT] <= op_res[15];
+
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                if((op_a[15] == op_b[15]) && (op_res[15] != op_b[15] ) )
+                                {
+                                    reg[1].value[VBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[VBIT] <= 1b0;
+                                }
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0001:
+                            {
+                                //0001 sub rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a - op_b;
+                                reg[1].value[CBIT] <= (~op_res[16]);
+                                reg[1].value[NBIT] <= op_res[15];
+
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                if((op_a[15] != op_b[15]) && (op_res[15] == op_b[15] ) )
+                                {
+                                    reg[1].value[VBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[VBIT] <= 1b0;
+                                }
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0010:
+                            {
+                                //0010 and rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a & op_b;
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0011:
+                            {
+                                //0011 dna rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a & (~op_b);
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0100:
+                            {
+                                //0100 or  rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a | op_b;
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0101:
+                            {
+                                //0101 xor rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a ^ op_b;
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0110:
+                            {
+                                //0110 neg rd,rs
+                                op_a = 17b0;
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a - op_b;
+                                reg[1].value[CBIT] <= (~op_res[16]);
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                if((op_a[15] != op_b[15]) && (op_res[15] == op_b[15] ) )
+                                {
+                                    reg[1].value[VBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[VBIT] <= 1b0;
+                                }
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b0111:
+                            {
+                                //0111 not rd,rs
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = (~op_b);
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b1000:
+                            {
+                                //1000 inc rd,rs
+                                op_a = 17b1;
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a + op_b;
+                                reg[1].value[CBIT] <= op_res[16];
+                                reg[1].value[NBIT] <= op_res[15];
+
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                if((op_a[15] == op_b[15]) && (op_res[15] != op_b[15] ) )
+                                {
+                                    reg[1].value[VBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[VBIT] <= 1b0;
+                                }
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b1001:
+                            {
+                                //1001 dec rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_b = 17b1;
+                                op_res = op_a - op_b;
+                                reg[1].value[CBIT] <= (~op_res[16]);
+                                reg[1].value[NBIT] <= op_res[15];
+
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                if((op_a[15] != op_b[15]) && (op_res[15] == op_b[15] ) )
+                                {
+                                    reg[1].value[VBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[VBIT] <= 1b0;
+                                }
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b1010:
+                            {
+                                //1010 cmp rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a - op_b;
+                                reg[1].value[CBIT] <= (~op_res[16]);
+                                reg[1].value[NBIT] <= op_res[15];
+
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                if((op_a[15] != op_b[15]) && (op_res[15] == op_b[15] ) )
+                                {
+                                    reg[1].value[VBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[VBIT] <= 1b0;
+                                }
+                                //reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 4b1011:
+                            {
+                                //1011 tst rd,rs
+                                op_a = bundle(1b0,reg[bundle(1b0,inst[4;8])].value);
+                                op_b = bundle(1b0,reg[bundle(1b0,inst[4;4])].value);
+                                op_res = op_a & op_b;
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                //reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            default:
+                            {
+                                astate_next = STATE_HALT;
+                            }
+                        }
+                    }
+                    case 4b0111:
+                    {
+                        //0111 dddd sisi aaaa  shift
+                        astate_next = STATE_FETCH;
+                        full_switch(inst[1;3])
+                        {
+                            case 1b0: { shift_amt = reg[bundle(1b0,inst[4;4])].value[4;0]; }
+                            default:  { shift_amt = inst[4;4]; }
+                        }
+                        full_switch(inst[3;0])
+                        {
+                            case 3b000:
+                            {
+                                //000 lsr rd,shift_amt
+                                op_res[16] = 0;
+                                full_switch(shift_amt)
+                                {
+                                    case 4b0001: { op_res[ 1;15] =  1b0; op_res[15;0] = reg[bundle(1b0,inst[4;8])].value[15; 1]; }
+                                    case 4b0010: { op_res[ 2;14] =  2b0; op_res[14;0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; }
+                                    case 4b0011: { op_res[ 3;13] =  3b0; op_res[13;0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; }
+                                    case 4b0100: { op_res[ 4;12] =  4b0; op_res[12;0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; }
+                                    case 4b0101: { op_res[ 5;11] =  5b0; op_res[11;0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; }
+                                    case 4b0110: { op_res[ 6;10] =  6b0; op_res[10;0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; }
+                                    case 4b0111: { op_res[ 7; 9] =  7b0; op_res[ 9;0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; }
+                                    case 4b1000: { op_res[ 8; 8] =  8b0; op_res[ 8;0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; }
+                                    case 4b1001: { op_res[ 9; 7] =  9b0; op_res[ 7;0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; }
+                                    case 4b1010: { op_res[10; 6] = 10b0; op_res[ 6;0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; }
+                                    case 4b1011: { op_res[11; 5] = 11b0; op_res[ 5;0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; }
+                                    case 4b1100: { op_res[12; 4] = 12b0; op_res[ 4;0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; }
+                                    case 4b1101: { op_res[13; 3] = 13b0; op_res[ 3;0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; }
+                                    case 4b1110: { op_res[14; 2] = 14b0; op_res[ 2;0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; }
+                                    case 4b1111: { op_res[15; 1] = 15b0; op_res[ 1;0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; }
+                                    default: { op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+
+                            case 3b001:
+                            {
+                                //001 asr rd,shift_amt
+                                op_res[16] = 0;
+                                full_switch(bundle(reg[bundle(1b0,inst[4;8])].value[15],shift_amt))
+                                {
+                                    case 5b00001: { op_res[ 1;15] =  1h0   ; op_res[15;0] = reg[bundle(1b0,inst[4;8])].value[15; 1]; }
+                                    case 5b00010: { op_res[ 2;14] =  2h0   ; op_res[14;0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; }
+                                    case 5b00011: { op_res[ 3;13] =  3h0   ; op_res[13;0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; }
+                                    case 5b00100: { op_res[ 4;12] =  4h0   ; op_res[12;0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; }
+                                    case 5b00101: { op_res[ 5;11] =  5h00  ; op_res[11;0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; }
+                                    case 5b00110: { op_res[ 6;10] =  6h00  ; op_res[10;0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; }
+                                    case 5b00111: { op_res[ 7; 9] =  7h00  ; op_res[ 9;0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; }
+                                    case 5b01000: { op_res[ 8; 8] =  8h00  ; op_res[ 8;0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; }
+                                    case 5b01001: { op_res[ 9; 7] =  9h000 ; op_res[ 7;0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; }
+                                    case 5b01010: { op_res[10; 6] = 10h000 ; op_res[ 6;0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; }
+                                    case 5b01011: { op_res[11; 5] = 11h000 ; op_res[ 5;0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; }
+                                    case 5b01100: { op_res[12; 4] = 12h000 ; op_res[ 4;0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; }
+                                    case 5b01101: { op_res[13; 3] = 13h0000; op_res[ 3;0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; }
+                                    case 5b01110: { op_res[14; 2] = 14h0000; op_res[ 2;0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; }
+                                    case 5b01111: { op_res[15; 1] = 15h0000; op_res[ 1;0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; }
+
+                                    case 5b10001: { op_res[ 1;15] =  1h1   ; op_res[15;0] = reg[bundle(1b0,inst[4;8])].value[15; 1]; }
+                                    case 5b10010: { op_res[ 2;14] =  2h3   ; op_res[14;0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; }
+                                    case 5b10011: { op_res[ 3;13] =  3h7   ; op_res[13;0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; }
+                                    case 5b10100: { op_res[ 4;12] =  4hF   ; op_res[12;0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; }
+                                    case 5b10101: { op_res[ 5;11] =  5h1F  ; op_res[11;0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; }
+                                    case 5b10110: { op_res[ 6;10] =  6h3F  ; op_res[10;0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; }
+                                    case 5b10111: { op_res[ 7; 9] =  7h7F  ; op_res[ 9;0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; }
+                                    case 5b11000: { op_res[ 8; 8] =  8hFF  ; op_res[ 8;0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; }
+                                    case 5b11001: { op_res[ 9; 7] =  9h1FF ; op_res[ 7;0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; }
+                                    case 5b11010: { op_res[10; 6] = 10h3FF ; op_res[ 6;0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; }
+                                    case 5b11011: { op_res[11; 5] = 11h7FF ; op_res[ 5;0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; }
+                                    case 5b11100: { op_res[12; 4] = 12hFFF ; op_res[ 4;0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; }
+                                    case 5b11101: { op_res[13; 3] = 13h1FFF; op_res[ 3;0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; }
+                                    case 5b11110: { op_res[14; 2] = 14h3FFF; op_res[ 2;0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; }
+                                    case 5b11111: { op_res[15; 1] = 15h7FFF; op_res[ 1;0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; }
+
+                                    default: { op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 3b010:
+                            {
+                                //010 lsl rd,shift_amt
+                                op_res[16] = 0;
+                                full_switch(shift_amt)
+                                {
+                                    case 4b0001: { op_res[15; 1] = reg[bundle(1b0,inst[4;8])].value[15; 0]; op_res[ 1; 0] =  1b0; }
+                                    case 4b0010: { op_res[14; 2] = reg[bundle(1b0,inst[4;8])].value[14; 0]; op_res[ 2; 0] =  2b0; }
+                                    case 4b0011: { op_res[13; 3] = reg[bundle(1b0,inst[4;8])].value[13; 0]; op_res[ 3; 0] =  3b0; }
+                                    case 4b0100: { op_res[12; 4] = reg[bundle(1b0,inst[4;8])].value[12; 0]; op_res[ 4; 0] =  4b0; }
+                                    case 4b0101: { op_res[11; 5] = reg[bundle(1b0,inst[4;8])].value[11; 0]; op_res[ 5; 0] =  5b0; }
+                                    case 4b0110: { op_res[10; 6] = reg[bundle(1b0,inst[4;8])].value[10; 0]; op_res[ 6; 0] =  6b0; }
+                                    case 4b0111: { op_res[ 9; 7] = reg[bundle(1b0,inst[4;8])].value[ 9; 0]; op_res[ 7; 0] =  7b0; }
+                                    case 4b1000: { op_res[ 8; 8] = reg[bundle(1b0,inst[4;8])].value[ 8; 0]; op_res[ 8; 0] =  8b0; }
+                                    case 4b1001: { op_res[ 7; 9] = reg[bundle(1b0,inst[4;8])].value[ 7; 0]; op_res[ 9; 0] =  9b0; }
+                                    case 4b1010: { op_res[ 6;10] = reg[bundle(1b0,inst[4;8])].value[ 6; 0]; op_res[10; 0] = 10b0; }
+                                    case 4b1011: { op_res[ 5;11] = reg[bundle(1b0,inst[4;8])].value[ 5; 0]; op_res[11; 0] = 11b0; }
+                                    case 4b1100: { op_res[ 4;12] = reg[bundle(1b0,inst[4;8])].value[ 4; 0]; op_res[12; 0] = 12b0; }
+                                    case 4b1101: { op_res[ 3;13] = reg[bundle(1b0,inst[4;8])].value[ 3; 0]; op_res[13; 0] = 13b0; }
+                                    case 4b1110: { op_res[ 2;14] = reg[bundle(1b0,inst[4;8])].value[ 2; 0]; op_res[14; 0] = 14b0; }
+                                    case 4b1111: { op_res[ 1;15] = reg[bundle(1b0,inst[4;8])].value[ 1; 0]; op_res[15; 0] = 15b0; }
+                                    default: { op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 3b011:
+                            {
+                                //011 ror rd,shift_amt
+                                full_switch(shift_amt)
+                                {
+                                    case 4b0001: { op_res[15; 0] = reg[bundle(1b0,inst[4;8])].value[15; 1]; op_res[ 1;15] = reg[bundle(1b0,inst[4;8])].value[ 1; 0]; }
+                                    case 4b0010: { op_res[14; 0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; op_res[ 2;14] = reg[bundle(1b0,inst[4;8])].value[ 2; 0]; }
+                                    case 4b0011: { op_res[13; 0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; op_res[ 3;13] = reg[bundle(1b0,inst[4;8])].value[ 3; 0]; }
+                                    case 4b0100: { op_res[12; 0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; op_res[ 4;12] = reg[bundle(1b0,inst[4;8])].value[ 4; 0]; }
+                                    case 4b0101: { op_res[11; 0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; op_res[ 5;11] = reg[bundle(1b0,inst[4;8])].value[ 5; 0]; }
+                                    case 4b0110: { op_res[10; 0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; op_res[ 6;10] = reg[bundle(1b0,inst[4;8])].value[ 6; 0]; }
+                                    case 4b0111: { op_res[ 9; 0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; op_res[ 7; 9] = reg[bundle(1b0,inst[4;8])].value[ 7; 0]; }
+                                    case 4b1000: { op_res[ 8; 0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; op_res[ 8; 8] = reg[bundle(1b0,inst[4;8])].value[ 8; 0]; }
+                                    case 4b1001: { op_res[ 7; 0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; op_res[ 9; 7] = reg[bundle(1b0,inst[4;8])].value[ 9; 0]; }
+                                    case 4b1010: { op_res[ 6; 0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; op_res[10; 6] = reg[bundle(1b0,inst[4;8])].value[10; 0]; }
+                                    case 4b1011: { op_res[ 5; 0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; op_res[11; 5] = reg[bundle(1b0,inst[4;8])].value[11; 0]; }
+                                    case 4b1100: { op_res[ 4; 0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; op_res[12; 4] = reg[bundle(1b0,inst[4;8])].value[12; 0]; }
+                                    case 4b1101: { op_res[ 3; 0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; op_res[13; 3] = reg[bundle(1b0,inst[4;8])].value[13; 0]; }
+                                    case 4b1110: { op_res[ 2; 0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; op_res[14; 2] = reg[bundle(1b0,inst[4;8])].value[14; 0]; }
+                                    case 4b1111: { op_res[ 1; 0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; op_res[15; 1] = reg[bundle(1b0,inst[4;8])].value[15; 0]; }
+                                    default: { op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 3b100:
+                            {
+                                //100 rol rd,shift_amt
+                                full_switch(shift_amt)
+                                {
+                                    case 4b0001: { op_res[15; 1] = reg[bundle(1b0,inst[4;8])].value[15; 0]; op_res[ 1; 0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; }
+                                    case 4b0010: { op_res[14; 2] = reg[bundle(1b0,inst[4;8])].value[14; 0]; op_res[ 2; 0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; }
+                                    case 4b0011: { op_res[13; 3] = reg[bundle(1b0,inst[4;8])].value[13; 0]; op_res[ 3; 0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; }
+                                    case 4b0100: { op_res[12; 4] = reg[bundle(1b0,inst[4;8])].value[12; 0]; op_res[ 4; 0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; }
+                                    case 4b0101: { op_res[11; 5] = reg[bundle(1b0,inst[4;8])].value[11; 0]; op_res[ 5; 0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; }
+                                    case 4b0110: { op_res[10; 6] = reg[bundle(1b0,inst[4;8])].value[10; 0]; op_res[ 6; 0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; }
+                                    case 4b0111: { op_res[ 9; 7] = reg[bundle(1b0,inst[4;8])].value[ 9; 0]; op_res[ 7; 0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; }
+                                    case 4b1000: { op_res[ 8; 8] = reg[bundle(1b0,inst[4;8])].value[ 8; 0]; op_res[ 8; 0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; }
+                                    case 4b1001: { op_res[ 7; 9] = reg[bundle(1b0,inst[4;8])].value[ 7; 0]; op_res[ 9; 0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; }
+                                    case 4b1010: { op_res[ 6;10] = reg[bundle(1b0,inst[4;8])].value[ 6; 0]; op_res[10; 0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; }
+                                    case 4b1011: { op_res[ 5;11] = reg[bundle(1b0,inst[4;8])].value[ 5; 0]; op_res[11; 0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; }
+                                    case 4b1100: { op_res[ 4;12] = reg[bundle(1b0,inst[4;8])].value[ 4; 0]; op_res[12; 0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; }
+                                    case 4b1101: { op_res[ 3;13] = reg[bundle(1b0,inst[4;8])].value[ 3; 0]; op_res[13; 0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; }
+                                    case 4b1110: { op_res[ 2;14] = reg[bundle(1b0,inst[4;8])].value[ 2; 0]; op_res[14; 0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; }
+                                    case 4b1111: { op_res[ 1;15] = reg[bundle(1b0,inst[4;8])].value[ 1; 0]; op_res[15; 0] = reg[bundle(1b0,inst[4;8])].value[15; 1]; }
+                                    default: { op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= 1b0;
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            case 3b101:
+                            {
+                                //101 rrc rd,shift_amt
+                                full_switch(shift_amt)
+                                {
+                                    case 4b0001: { op_res[15] = reg[1].value[CBIT]; op_res[15; 0] = reg[bundle(1b0,inst[4;8])].value[15; 1]; op_res[ 1;16] = reg[bundle(1b0,inst[4;8])].value[ 1; 0]; }
+                                    case 4b0010: { op_res[14] = reg[1].value[CBIT]; op_res[14; 0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; op_res[ 2;15] = reg[bundle(1b0,inst[4;8])].value[ 2; 0]; }
+                                    case 4b0011: { op_res[13] = reg[1].value[CBIT]; op_res[13; 0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; op_res[ 3;14] = reg[bundle(1b0,inst[4;8])].value[ 3; 0]; }
+                                    case 4b0100: { op_res[12] = reg[1].value[CBIT]; op_res[12; 0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; op_res[ 4;13] = reg[bundle(1b0,inst[4;8])].value[ 4; 0]; }
+                                    case 4b0101: { op_res[11] = reg[1].value[CBIT]; op_res[11; 0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; op_res[ 5;12] = reg[bundle(1b0,inst[4;8])].value[ 5; 0]; }
+                                    case 4b0110: { op_res[10] = reg[1].value[CBIT]; op_res[10; 0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; op_res[ 6;11] = reg[bundle(1b0,inst[4;8])].value[ 6; 0]; }
+                                    case 4b0111: { op_res[ 9] = reg[1].value[CBIT]; op_res[ 9; 0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; op_res[ 7;10] = reg[bundle(1b0,inst[4;8])].value[ 7; 0]; }
+                                    case 4b1000: { op_res[ 8] = reg[1].value[CBIT]; op_res[ 8; 0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; op_res[ 8; 9] = reg[bundle(1b0,inst[4;8])].value[ 8; 0]; }
+                                    case 4b1001: { op_res[ 7] = reg[1].value[CBIT]; op_res[ 7; 0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; op_res[ 9; 8] = reg[bundle(1b0,inst[4;8])].value[ 9; 0]; }
+                                    case 4b1010: { op_res[ 6] = reg[1].value[CBIT]; op_res[ 6; 0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; op_res[10; 7] = reg[bundle(1b0,inst[4;8])].value[10; 0]; }
+                                    case 4b1011: { op_res[ 5] = reg[1].value[CBIT]; op_res[ 5; 0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; op_res[11; 6] = reg[bundle(1b0,inst[4;8])].value[11; 0]; }
+                                    case 4b1100: { op_res[ 4] = reg[1].value[CBIT]; op_res[ 4; 0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; op_res[12; 5] = reg[bundle(1b0,inst[4;8])].value[12; 0]; }
+                                    case 4b1101: { op_res[ 3] = reg[1].value[CBIT]; op_res[ 3; 0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; op_res[13; 4] = reg[bundle(1b0,inst[4;8])].value[13; 0]; }
+                                    case 4b1110: { op_res[ 2] = reg[1].value[CBIT]; op_res[ 2; 0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; op_res[14; 3] = reg[bundle(1b0,inst[4;8])].value[14; 0]; }
+                                    case 4b1111: { op_res[ 1] = reg[1].value[CBIT]; op_res[ 1; 0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; op_res[15; 2] = reg[bundle(1b0,inst[4;8])].value[15; 0]; }
+                                    default: { op_res[16] = reg[1].value[CBIT]; op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= op_res[16];
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+
+                            case 3b110:
+                            {
+                                //110 rlc rd,shift_amt
+                                full_switch(shift_amt)
+                                {
+                                    case 4b0001: { op_res[16; 1] = reg[bundle(1b0,inst[4;8])].value[16; 0]; op_res[ 1; 0] = reg[1].value[CBIT];                                             }
+                                    case 4b0010: { op_res[15; 2] = reg[bundle(1b0,inst[4;8])].value[15; 0]; op_res[ 1; 1] = reg[1].value[CBIT]; op_res[ 1;0] = reg[bundle(1b0,inst[4;8])].value[ 1;15]; }
+                                    case 4b0011: { op_res[14; 3] = reg[bundle(1b0,inst[4;8])].value[14; 0]; op_res[ 1; 2] = reg[1].value[CBIT]; op_res[ 2;0] = reg[bundle(1b0,inst[4;8])].value[ 2;14]; }
+                                    case 4b0100: { op_res[13; 4] = reg[bundle(1b0,inst[4;8])].value[13; 0]; op_res[ 1; 3] = reg[1].value[CBIT]; op_res[ 3;0] = reg[bundle(1b0,inst[4;8])].value[ 3;13]; }
+                                    case 4b0101: { op_res[12; 5] = reg[bundle(1b0,inst[4;8])].value[12; 0]; op_res[ 1; 4] = reg[1].value[CBIT]; op_res[ 4;0] = reg[bundle(1b0,inst[4;8])].value[ 4;12]; }
+                                    case 4b0110: { op_res[11; 6] = reg[bundle(1b0,inst[4;8])].value[11; 0]; op_res[ 1; 5] = reg[1].value[CBIT]; op_res[ 5;0] = reg[bundle(1b0,inst[4;8])].value[ 5;11]; }
+                                    case 4b0111: { op_res[10; 7] = reg[bundle(1b0,inst[4;8])].value[10; 0]; op_res[ 1; 6] = reg[1].value[CBIT]; op_res[ 6;0] = reg[bundle(1b0,inst[4;8])].value[ 6;10]; }
+                                    case 4b1000: { op_res[ 9; 8] = reg[bundle(1b0,inst[4;8])].value[ 9; 0]; op_res[ 1; 7] = reg[1].value[CBIT]; op_res[ 7;0] = reg[bundle(1b0,inst[4;8])].value[ 7; 9]; }
+                                    case 4b1001: { op_res[ 8; 9] = reg[bundle(1b0,inst[4;8])].value[ 8; 0]; op_res[ 1; 8] = reg[1].value[CBIT]; op_res[ 8;0] = reg[bundle(1b0,inst[4;8])].value[ 8; 8]; }
+                                    case 4b1010: { op_res[ 7;10] = reg[bundle(1b0,inst[4;8])].value[ 7; 0]; op_res[ 1; 9] = reg[1].value[CBIT]; op_res[ 9;0] = reg[bundle(1b0,inst[4;8])].value[ 9; 7]; }
+                                    case 4b1011: { op_res[ 6;11] = reg[bundle(1b0,inst[4;8])].value[ 6; 0]; op_res[ 1;10] = reg[1].value[CBIT]; op_res[10;0] = reg[bundle(1b0,inst[4;8])].value[10; 6]; }
+                                    case 4b1100: { op_res[ 5;12] = reg[bundle(1b0,inst[4;8])].value[ 5; 0]; op_res[ 1;11] = reg[1].value[CBIT]; op_res[11;0] = reg[bundle(1b0,inst[4;8])].value[11; 5]; }
+                                    case 4b1101: { op_res[ 4;13] = reg[bundle(1b0,inst[4;8])].value[ 4; 0]; op_res[ 1;12] = reg[1].value[CBIT]; op_res[12;0] = reg[bundle(1b0,inst[4;8])].value[12; 4]; }
+                                    case 4b1110: { op_res[ 3;14] = reg[bundle(1b0,inst[4;8])].value[ 3; 0]; op_res[ 1;13] = reg[1].value[CBIT]; op_res[13;0] = reg[bundle(1b0,inst[4;8])].value[13; 3]; }
+                                    case 4b1111: { op_res[ 2;15] = reg[bundle(1b0,inst[4;8])].value[ 2; 0]; op_res[ 1;14] = reg[1].value[CBIT]; op_res[14;0] = reg[bundle(1b0,inst[4;8])].value[14; 2]; }
+
+
+                                    default: { op_res[16] = reg[1].value[CBIT]; op_res[16;0] = reg[bundle(1b0,inst[4;8])].value; }
+                                }
+                                reg[1].value[CBIT] <= op_res[16];
+                                reg[1].value[NBIT] <= op_res[15];
+                                if(op_res[16;0] == 16h0000)
+                                {
+                                    reg[1].value[ZBIT] <= 1b1;
+                                }
+                                else
+                                {
+                                    reg[1].value[ZBIT] <= 1b0;
+                                }
+                                reg[1].value[VBIT] <= 1b0;
+                                reg[bundle(1b0,inst[4;8])].value <= op_res[16;0];
+                            }
+                            default:
+                            {
+                                astate_next = STATE_HALT;
+                            }
+                        }
+                    }
+                    case 4b1000: //llz
+                    {
+                        //1000 dddd iiiiiiii   load immed low zero high
+                        astate_next = STATE_FETCH;
+                        reg[bundle(1b0,inst[4;8])].value[8;8] <= 8b0;
+                        reg[bundle(1b0,inst[4;8])].value[8;0] <= inst[8;0];
+                    }
+                    case 4b1001: //lhz
+                    {
+                        //1001 dddd iiiiiiii   load immed high zero low
+                        astate_next = STATE_FETCH;
+                        reg[bundle(1b0,inst[4;8])].value[8;8] <= inst[8;0];
+                        reg[bundle(1b0,inst[4;8])].value[8;0] <= 8b0;
+                    }
+                    case 4b1010: //ll
+                    {
+                        //1010 dddd iiiiiiii   load immed low
+                        astate_next = STATE_FETCH;
+                        reg[bundle(1b0,inst[4;8])].value[8;0] <= inst[8;0];
+                    }
+                    case 4b1011: //lh
+                    {
+                        //1011 dddd iiiiiiii   load immed high
+                        astate_next = STATE_FETCH;
+                        reg[bundle(1b0,inst[4;8])].value[8;8] <= inst[8;0];
+                    }
+                    case 4b1100:
+                    {
+                        //1100 aaaa siiiiiii   branch pc relative
+                        astate_next = STATE_FETCH;
+                        full_switch(inst[4;8])
+                        {
+                            case 4b0000:
+                            {
+                                //0000 b
+                                pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                            }
+                            case 4b0001:
+                            {
+                                //0001 bz
+                                if(reg[1].value[ZBIT] == 1)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b0010:
+                            {
+                                //0010 bnz
+                                if(reg[1].value[ZBIT] == 0)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b0011:
+                            {
+                                //0011 bc
+                                if(reg[1].value[CBIT] == 1)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b0100:
+                            {
+                                //0100 bnc
+                                if(reg[1].value[CBIT] == 0)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b0101:
+                            {
+                                //0101 bn
+                                if(reg[1].value[NBIT] == 1)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b0110:
+                            {
+                                //0110 bnn
+                                if(reg[1].value[NBIT] == 0)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b0111:
+                            {
+                                //0111 bv
+                                if(reg[1].value[VBIT] == 1)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b1000:
+                            {
+                                //1000 bnv
+                                if(reg[1].value[VBIT] == 0)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b1001:
+                            {
+                                //1001 bsg signed greater (n xor v) = 0
+                                tbit = reg[1].value[NBIT] ^ reg[1].value[VBIT];
+                                if(tbit == 0)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            case 4b1010:
+                            {
+                                //1010 bsl signed less    (n xor v) = 1
+                                tbit = reg[1].value[NBIT] ^ reg[1].value[VBIT];
+                                if(tbit == 1)
+                                {
+                                    pc_next = reg[0].value + bundle(inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[7],inst[8;0]);
+                                }
+                            }
+                            default:
+                            {
+                                astate_next = STATE_HALT;
+                            }
+                        }
+                    }
+                    case 4b1101:
+                    {
+                        //1101 aaaa dddd ssss  branch register
+                        astate_next = STATE_FETCH;
+                        full_switch(inst[4;8])
+                        {
+                            case 4b0000:
+                            {
+                                //0000 b
+                                pc_next = reg[bundle(1b0,inst[4;0])].value;
+                            }
+                            case 4b0001:
+                            {
+                                //0001 bz
+                                if(reg[1].value[ZBIT] == 1)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b0010:
+                            {
+                                //0010 bnz
+                                if(reg[1].value[ZBIT] == 0)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b0011:
+                            {
+                                //0011 bc
+                                if(reg[1].value[CBIT] == 1)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b0100:
+                            {
+                                //0100 bnc
+                                if(reg[1].value[CBIT] == 0)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b0101:
+                            {
+                                //0101 bn
+                                if(reg[1].value[NBIT] == 1)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b0110:
+                            {
+                                //0110 bnn
+                                if(reg[1].value[NBIT] == 0)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b0111:
+                            {
+                                //0111 bv
+                                if(reg[1].value[VBIT] == 1)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b1000:
+                            {
+                                //1000 bnv
+                                if(reg[1].value[VBIT] == 0)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b1001:
+                            {
+                                //1001 bug unsigned greater C set and Z clear
+                                if( (reg[1].value[CBIT] == 1) && (reg[1].value[ZBIT] == 0) )
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b1010:
+                            {
+                                //1010 bsg signed greater (n xor v) = 0
+                                tbit = reg[1].value[NBIT] ^ reg[1].value[VBIT];
+                                if(tbit == 0)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b1011:
+                            {
+                                //1011 bsl signed less    (n xor v) = 1
+                                tbit = reg[1].value[NBIT] ^ reg[1].value[VBIT];
+                                if(tbit == 1)
+                                {
+                                    pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                }
+                            }
+                            case 4b1111:
+                            {
+                                //1011 call rd,rs
+                                pc_next = reg[bundle(1b0,inst[4;0])].value;
+                                reg[bundle(1b0,inst[4;4])].value <= reg[0].value;
+                            }
+                            default:
+                            {
+                                astate_next = STATE_HALT;
+                            }
+                        }
+                    }
+                    //case 4b1111: //halt
+                    default:
+                    {
+                        astate_next = STATE_HALT;
+                    }
+                }
+            }
+
+            case STATE_STORE:
+            {
+                astate_next = STATE_FETCH;
+            }
+
+            case STATE_LOAD:
+            {
+                astate_next = STATE_FETCH;
+                full_switch(inst[4;12])
+                {
+                    case 4b0000: //lpc
+                    {
+                        //0000 dddd iiiiiiii   load pc relative
+                        reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                    }
+                    case 4b0001: //lsp
+                    {
+                        //0001 dddd iiiiiiii   load sp relative
+                        reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                    }
+                    case 4b0100:
+                    {
+                        //0100 dddd ssss aaaa  load/store
+                        full_switch(inst[4;0])
+                        {
+                            case 4b0000:
+                            {
+                                //0000 ldw rd,[rs]
+                                reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                            }
+                            case 4b0001:
+                            {
+                                //0001 ldw rd,[rs++]
+                                reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                            }
+                            case 4b0010:
+                            {
+                                //0010 ldw rd,[++rs]
+                                reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                            }
+                            case 4b0011:
+                            {
+                                //0011 ldw rd,[rs--]
+                                reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                            }
+                            case 4b0100:
+                            {
+                                //0100 ldw rd,[--rs]
+                                reg[bundle(1b0,inst[4;8])].value <= mem_rdata;
+                            }
+                            default:
+                            {
+                                astate_next = STATE_HALT;
+                            }
+                        }
+                    }
+                    default:
+                    {
+                        astate_next = STATE_HALT;
+                    }
+                }
+            }
+            default:
+            {
+                astate_next = STATE_HALT;
+            }
+        }
+
+
+        reg[0].value <= pc_next;
+
+        astate <= astate_next;
+    }
+}

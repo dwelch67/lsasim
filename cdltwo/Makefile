@@ -1,10 +1,18 @@
 
-all : lsa_core.v lsatwo_64.v lsatwo_64_simple.v obj_dir/Vlsatwo
+all : lsa_core.v lsatwo_64.v lsatwo_32.v lsatwo_16.v lsatwo_64_simple.v obj_dir/Vlsatwo
 
 
 lsatwo_64.v : lsatwo_64.cdl program.cdl
 	cdl --verilog lsatwo_64.v --include-dir .  lsatwo_64.cdl
 	verilator --lint-only lsatwo_64.v
+
+lsatwo_32.v : lsatwo_32.cdl program.cdl
+	cdl --verilog lsatwo_32.v --include-dir .  lsatwo_32.cdl
+	verilator --lint-only lsatwo_32.v
+
+lsatwo_16.v : lsatwo_16.cdl program.cdl
+	cdl --verilog lsatwo_16.v --include-dir .  lsatwo_16.cdl
+	verilator --lint-only lsatwo_16.v
 
 lsatwo_64_simple.v : lsatwo_64_simple.cdl program.cdl
 	cdl --verilog lsatwo_64_simple.v --include-dir .  lsatwo_64_simple.cdl
