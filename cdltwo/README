@@ -1,0 +1,4 @@
+
+Reworking the RTL to use a little different, hopefully more obvious,
+state machine.
+

@@ -1717,7 +1717,7 @@ int main ( int argc, char *argv[] )
     }
     fclose(fpout);
 
-    fpout=fopen("sram.cdl","wt");
+    fpout=fopen("program.cdl","wt");
     if(fpout==NULL)
     {
         printf("Error creating file [%s]\n",newline);
@@ -1725,7 +1725,7 @@ int main ( int argc, char *argv[] )
     }
     for(ra=0;ra<=0x10000;ra++)
     {
-        if(mem[ra]&0x80000000) fprintf(fpout,"case 16h%04X: { mem_out = 0x%04X; }\n",ra,mem[ra]&0xFFFF);
+        if(mem[ra]&0x80000000) fprintf(fpout,"case 16h%04X: { mem_rdata = 0x%04X; }\n",ra,mem[ra]&0xFFFF);
     }
     fclose(fpout);
 

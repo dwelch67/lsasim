@@ -44,7 +44,7 @@ module lsa_core
 
 
     comb bit[16] mem_add;
-    comb bit[16] mem_out;
+    comb bit[16] mem_rdata;
     comb bit[16] mem_in;
     comb bit[1]  mem_wr;
     comb bit[1]  mem_rd;
@@ -55,28 +55,17 @@ module lsa_core
 
     the_mem:
     {
-        mem_out = 0x0000;
+        mem_rdata = 0x0000;
         if(mem_rd == 1b1)
         {
             full_switch(mem_add)
             {
 
-case 16h0000: { mem_out = 0xC001; }
-case 16h0001: { mem_out = 0xC000; }
-case 16h0002: { mem_out = 0x97F1; }
-case 16h0003: { mem_out = 0x8500; }
-case 16h0004: { mem_out = 0x8820; }
-case 16h0005: { mem_out = 0x6889; }
-case 16h0006: { mem_out = 0xC2FE; }
-case 16h0007: { mem_out = 0x6558; }
-case 16h0008: { mem_out = 0x4758; }
-case 16h0009: { mem_out = 0x8820; }
-case 16h000A: { mem_out = 0xC0FA; }
-
+include "program.cdl"
 
                 default:
                 {
-                    mem_out = 0x0000;
+                    mem_rdata = 0x0000;
                 }
             }
         }
@@ -127,7 +116,7 @@ case 16h000A: { mem_out = 0xC0FA; }
                 mem_add = reg[0].value;
                 mem_fetch = 1;
                 mem_rd = 1;
-                inst <= mem_out;
+                inst <= mem_rdata;
                 astate_next = STATE_DECODE;
             }
             case STATE_DECODE:
@@ -142,9 +131,9 @@ case 16h000A: { mem_out = 0xC0FA; }
                             case 0x8: //1000 stw [rd]  ,rs
                             {
                                 //1000 stw [rd]  ,rs
-                                mem_add = reg[bundle(2b0,inst[4;8])].value;
+                                mem_add = reg[bundle(2b00,inst[4;8])].value;
                                 mem_wr = 1;
-                                mem_in = reg[bundle(2b0,inst[4;4])].value;
+                                mem_in = reg[bundle(2b00,inst[4;4])].value;
                                 astate_next = STATE_STORE;
                             }
                             default:
@@ -161,7 +150,7 @@ case 16h000A: { mem_out = 0xC0FA; }
                             {
                                 //1000 inc rd,rs
                                 op_a = 17b1;
-                                op_b = bundle(1b0,reg[bundle(2b0,inst[4;4])].value);
+                                op_b = bundle(1b0,reg[bundle(2b00,inst[4;4])].value);
                                 op_res = op_a + op_b;
                                 reg[1].value[CBIT] <= op_res[16];
                                 reg[1].value[NBIT] <= op_res[15];
@@ -182,13 +171,13 @@ case 16h000A: { mem_out = 0xC0FA; }
                                 {
                                     reg[1].value[VBIT] <= 1b0;
                                 }
-                                reg[bundle(2b0,inst[4;8])].value <= op_res[16;0];
+                                reg[bundle(2b00,inst[4;8])].value <= op_res[16;0];
                                 astate_next = STATE_FETCH;
                             }
                             case 0x9: //dec rd,rd
                             {
                                 //1001 dec rd,rs
-                                op_a = bundle(1b0,reg[bundle(2b0,inst[4;4])].value);
+                                op_a = bundle(1b0,reg[bundle(2b00,inst[4;4])].value);
                                 op_b = 17b1;
                                 op_res = op_a - op_b;
                                 reg[1].value[CBIT] <= (~op_res[16]);
@@ -210,7 +199,7 @@ case 16h000A: { mem_out = 0xC0FA; }
                                 {
                                     reg[1].value[VBIT] <= 1b0;
                                 }
-                                reg[bundle(2b0,inst[4;8])].value <= op_res[16;0];
+                                reg[bundle(2b00,inst[4;8])].value <= op_res[16;0];
                                 astate_next = STATE_FETCH;
 
                             }
