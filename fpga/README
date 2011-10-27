@@ -41,3 +41,8 @@ Vmware is maturing very nicely though, the usb devices, programmers, etc
 pass right through into windows no problem and windows can manage them.
 Altera's quartus installs just fine on Ubuntu and runs just fine not
 being behind a vm the project builds relatively fast
+
+
+The brevia directory is one cut using the Lattice Brevia board, lsabrevia
+uses the same board but is the second method of implementation (cdlsim
+vs cdltwo).

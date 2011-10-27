@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BaliProject version="1.3" title="lsabrevia" device="LFXP2-5E-5TN144C" default_implementation="lsabrevia">
+    <Options/>
+    <Implementation title="lsabrevia" dir="lsabrevia" description="lsabrevia" default_strategy="Area">
+        <Options/>
+        <Source name="lsa_core.v" type="Verilog" type_short="Verilog">
+            <Options/>
+        </Source>
+        <Source name="lsabrevia.lpf" type="Logic Preference" type_short="LPF">
+            <Options/>
+        </Source>
+    </Implementation>
+</BaliProject>

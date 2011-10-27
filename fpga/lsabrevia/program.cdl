@@ -1,0 +1,14 @@
+case 16h0000: { mem_rdata = 0xC001; }
+case 16h0001: { mem_rdata = 0xC000; }
+case 16h0002: { mem_rdata = 0x97F1; }
+case 16h0003: { mem_rdata = 0x8500; }
+case 16h0004: { mem_rdata = 0x8800; }
+case 16h0005: { mem_rdata = 0x8910; }
+case 16h0006: { mem_rdata = 0x6889; }
+case 16h0007: { mem_rdata = 0xC2FE; }
+case 16h0008: { mem_rdata = 0x6999; }
+case 16h0009: { mem_rdata = 0xC2FC; }
+case 16h000A: { mem_rdata = 0x6558; }
+case 16h000B: { mem_rdata = 0x4758; }
+case 16h000C: { mem_rdata = 0x8910; }
+case 16h000D: { mem_rdata = 0xC0F8; }
