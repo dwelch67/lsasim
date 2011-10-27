@@ -1,15 +1,15 @@
 
 
-constant integer STATE_NONE     = 0;
-constant integer STATE_RESET    = 1;
-constant integer STATE_FETCH    = 2;
-constant integer STATE_DECODE   = 3;
-constant integer STATE_STORE    = 4;
-constant integer STATE_LOAD     = 5;
-
-
-constant integer STATE_HALT     = 15;
-
+typedef one_hot fsm
+{
+    STATE_NONE    "none";
+    STATE_RESET   "reset";
+    STATE_FETCH   "fetch";
+    STATE_DECODE  "decode";
+    STATE_STORE   "store";
+    STATE_LOAD    "load";
+    STATE_HALT    "halt";
+} one_hot_fsm;
 
 constant integer VBIT = 3;
 constant integer NBIT = 2;
@@ -34,10 +34,10 @@ module lsa_core
 
     comb bit[16] pc_next;
 
-    clocked bit[4] astate = STATE_NONE;
-    comb bit[4] astate_next;
+    clocked one_hot_fsm astate = STATE_NONE;
+    comb one_hot_fsm astate_next;
 
-    clocked bit[16] inst = 0;
+    clocked bit[16] inst = 16h0000;
 
     comb bit[17] op_a;
     comb bit[17] op_b;
@@ -54,11 +54,11 @@ module lsa_core
     comb bit[1]  mem_rd;
     comb bit[1]  mem_fetch;
 
-    clocked bit[8] leds = 0x00;
+    clocked bit[8] leds = 8h00;
 
     the_mem:
     {
-        mem_rdata = 0x0000;
+        mem_rdata = 16h0000;
         if(mem_rd == 1b1)
         {
             full_switch(mem_add)
@@ -68,7 +68,7 @@ include "program.cdl"
 
                 default:
                 {
-                    mem_rdata = 0x0000;
+                    mem_rdata = 16h0000;
                 }
             }
         }
@@ -76,7 +76,7 @@ include "program.cdl"
         {
             full_switch(mem_add)
             {
-                case 0xF100:
+                case 16hF100:
                 {
                     leds <= mem_wdata[8;0];
                 }
@@ -90,15 +90,15 @@ include "program.cdl"
 
     the_code:
     {
-        mem_add   = 0x0000;
-        mem_wdata = 0x0000;
-        mem_wr    = 0;
-        mem_rd    = 0;
-        mem_fetch = 0;
+        mem_add   = 16h0000;
+        mem_wdata = 16h0000;
+        mem_wr    = 1b0;
+        mem_rd    = 1b0;
+        mem_fetch = 1b0;
         astate_next = astate;
         pc_next = reg[0].value;
-        tbit = 0;
-        shift_amt = 0;
+        tbit = 1b0;
+        shift_amt = 4h0;
 
         full_switch(astate)
         {
@@ -108,15 +108,15 @@ include "program.cdl"
             }
             case STATE_RESET:
             {
-                pc_next = 0x0000;
+                pc_next = 16h0000;
                 astate_next = STATE_FETCH;
             }
             case STATE_FETCH:
             {
                 pc_next = reg[0].value + 1;
                 mem_add = reg[0].value;
-                mem_fetch = 1;
-                mem_rd = 1;
+                mem_fetch = 1b1;
+                mem_rd = 1b1;
                 inst <= mem_rdata;
                 astate_next = STATE_DECODE;
             }
@@ -130,7 +130,7 @@ include "program.cdl"
                         //0000 dddd iiiiiiii   load pc relative
                         astate_next = STATE_LOAD;
                         mem_add = reg[0].value + bundle(8b00000000,inst[8;0]);
-                        mem_rd = 1;
+                        mem_rd = 1b1;
                         //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                     }
                     case 4b0001: //lsp
@@ -138,7 +138,7 @@ include "program.cdl"
                         //0001 dddd iiiiiiii   load sp relative
                         astate_next = STATE_LOAD;
                         mem_add = reg[2].value + bundle(8b00000000,inst[8;0]);
-                        mem_rd = 1;
+                        mem_rd = 1b1;
                         //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                     }
                     case 4b0010: //spc
@@ -146,7 +146,7 @@ include "program.cdl"
                         //0010 ssss iiiiiiii   store pc relative
                         astate_next = STATE_STORE;
                         mem_add = reg[0].value + bundle(8b00000000,inst[8;0]);
-                        mem_wr = 1;
+                        mem_wr = 1b1;
                         mem_wdata = reg[bundle(2b00,inst[4;8])].value;
                     }
                     case 4b0011: //ssp
@@ -154,7 +154,7 @@ include "program.cdl"
                         //0011 ssss iiiiiiii   store sp relative
                         astate_next = STATE_STORE;
                         mem_add = reg[2].value + bundle(8b00000000,inst[8;0]);
-                        mem_wr = 1;
+                        mem_wr = 1b1;
                         mem_wdata = reg[bundle(2b00,inst[4;8])].value;
                     }
                     case 4b0100:
@@ -167,7 +167,7 @@ include "program.cdl"
                                 //0000 ldw rd,[rs]
                                 astate_next = STATE_LOAD;
                                 mem_add = reg[bundle(2b00,inst[4;4])].value;
-                                mem_rd = 1;
+                                mem_rd = 1b1;
                                 //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                             }
                             case 4b0001:
@@ -175,7 +175,7 @@ include "program.cdl"
                                 //0001 ldw rd,[rs++]
                                 astate_next = STATE_LOAD;
                                 mem_add = reg[bundle(2b00,inst[4;4])].value;
-                                mem_rd = 1;
+                                mem_rd = 1b1;
                                 //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                                 reg[bundle(2b00,inst[4;4])].value <= reg[bundle(2b00,inst[4;4])].value + 1;
                             }
@@ -184,7 +184,7 @@ include "program.cdl"
                                 //0010 ldw rd,[++rs]
                                 astate_next = STATE_LOAD;
                                 mem_add = reg[bundle(2b00,inst[4;4])].value + 1;
-                                mem_rd = 1;
+                                mem_rd = 1b1;
                                 //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                                 reg[bundle(2b00,inst[4;4])].value <= reg[bundle(2b00,inst[4;4])].value + 1;
                             }
@@ -193,7 +193,7 @@ include "program.cdl"
                                 //0011 ldw rd,[rs--]
                                 astate_next = STATE_LOAD;
                                 mem_add = reg[bundle(2b00,inst[4;4])].value;
-                                mem_rd = 1;
+                                mem_rd = 1b1;
                                 //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                                 reg[bundle(2b00,inst[4;4])].value <= reg[bundle(2b00,inst[4;4])].value - 1;
                             }
@@ -202,7 +202,7 @@ include "program.cdl"
                                 //0100 ldw rd,[--rs]
                                 astate_next = STATE_LOAD;
                                 mem_add = reg[bundle(2b00,inst[4;4])].value - 1;
-                                mem_rd = 1;
+                                mem_rd = 1b1;
                                 //reg[bundle(2b00,inst[4;8])].value <= mem_rdata_not;
                                 reg[bundle(2b00,inst[4;4])].value <= reg[bundle(2b00,inst[4;4])].value - 1;
                             }
@@ -219,7 +219,7 @@ include "program.cdl"
                                 //1000 stw [rd]  ,rs
                                 astate_next = STATE_STORE;
                                 mem_add = reg[bundle(2b00,inst[4;8])].value;
-                                mem_wr = 1;
+                                mem_wr = 1b1;
                                 mem_wdata = reg[bundle(2b00,inst[4;4])].value;
                             }
                             case 4b1001:
@@ -227,7 +227,7 @@ include "program.cdl"
                                 //1001 stw [rd++],rs
                                 astate_next = STATE_STORE;
                                 mem_add = reg[bundle(2b00,inst[4;8])].value;
-                                mem_wr = 1;
+                                mem_wr = 1b1;
                                 mem_wdata = reg[bundle(2b00,inst[4;4])].value;
                                 reg[bundle(2b00,inst[4;8])].value <= reg[bundle(2b00,inst[4;8])].value + 1;
                             }
@@ -236,7 +236,7 @@ include "program.cdl"
                                 //1010 stw [++rd],rs
                                 astate_next = STATE_STORE;
                                 mem_add = reg[bundle(2b00,inst[4;8])].value + 1;
-                                mem_wr = 1;
+                                mem_wr = 1b1;
                                 mem_wdata = reg[bundle(2b00,inst[4;4])].value;
                                 reg[bundle(2b00,inst[4;8])].value <= reg[bundle(2b00,inst[4;8])].value + 1;
                             }
@@ -245,7 +245,7 @@ include "program.cdl"
                                 //1011 stw [rd--],rs
                                 astate_next = STATE_STORE;
                                 mem_add = reg[bundle(2b00,inst[4;8])].value;
-                                mem_wr = 1;
+                                mem_wr = 1b1;
                                 mem_wdata = reg[bundle(2b00,inst[4;4])].value;
                                 reg[bundle(2b00,inst[4;8])].value <= reg[bundle(2b00,inst[4;8])].value - 1;
                             }
@@ -254,7 +254,7 @@ include "program.cdl"
                                 //1100 stw [--rd],rs
                                 astate_next = STATE_STORE;
                                 mem_add = reg[bundle(2b00,inst[4;8])].value - 1;
-                                mem_wr = 1;
+                                mem_wr = 1b1;
                                 mem_wdata = reg[bundle(2b00,inst[4;4])].value;
                                 reg[bundle(2b00,inst[4;8])].value <= reg[bundle(2b00,inst[4;8])].value - 1;
                             }
