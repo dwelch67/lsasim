@@ -2647,6 +2647,398 @@ modify the c flag but leave the other flags untouched.
 
 
 
+************************************************
+I want to re-write the last few lessons and take
+a different approach, so this is under construction.
+************************************************
+
+
+---------------------------------------------------------------------
+Lesson xx:  Calling a function
+
+---- lessonxx ----
+    b lessonxx
+    b lessonxx
+lessonxx:
+
+    lpc r3,myfun_add
+    call r4,r3
+    llz r5,#0xCD
+    stw [r7],r5
+    halt
+
+myfun:
+    lhz r7,#0xFF
+    lhz r5,#0xAB
+    stw [r7],r5
+    b r4
+myfun_add: .word =myfun
+---- lessonxx ----
+
+You should see:
+
+show: 0xAB00
+show: 0x00CD
+
+What does this program do?
+
+The difference between branching to a label and calling a function (a
+function is just an address/label as well) is when you call a function
+you expect to at some point come back to keep on running the thing that
+is right after the function call.
+
+With the lsa instruction set the branch type instruction used to call
+functions is called...call.
+
+The instruction set reference says
+
+call rd,rs
+
+rd = pc
+pc = rs
+
+and it is implied that
+
+b rs
+
+pc = rs
+
+so the difference is rd = pc.  Well at the time of execution of an
+instruction the pc points to the next instruction so rd = pc means
+save the address of the instruction after the call instruction in the
+rd register.  Then pc = rs means branch to the address in the rs register
+no different than a branch register instruction.
+
+What this means is that to return to the instruction after the call to
+the funciton we simply use the branch register instruction with the
+register holding the return address, in this case:
+
+    lpc r3,myfun_add
+    call r4,r3
+    ...
+myfun:
+    ...
+    b r4
+
+before the call instruciton r3 gets the address to the function (which
+is just a label/address nothing magic about it).  Then the call
+instruction in this case specified r4 will hold the return address
+and r3 has the address to branch to.  After branching to myfun the code
+that follows ends up in a branch to r4 which the call put the return
+address, the address of the instruciton after the call instruction.
+
+The code after myfun shows the value 0xAB00 and the code after returning
+shows the value 0x00CD
+
+
+
+
+
+---------------------------------------------------------------------
+Lesson xx:  The stack, part 1
+
+---- lessonxx ----
+    b lessonxx
+    b lessonxx
+lessonxx:
+
+    lhz r7,#0xFF
+    lpc r3,myfun_add
+    call r4,r3
+    llz r5,#0xCD
+    stw [r7],r5
+    halt
+
+myfun:
+    push r4
+    lhz r4,#0xAB
+    stw [r7],r4
+    pop r4
+    b r4
+myfun_add: .word =myfun
+---- lessonxx ----
+
+You should see:
+
+show: 0xAB00
+show: 0x00CD
+
+What does this program do?
+
+You dont see or use the stack directly in high level languages but
+you likely have heard the term, and maybe have been taught something
+about it, stacks of plates in a cafeteria spring holder thing.
+
+I want you to visualize note cards, paper note cards or post-it notes
+or something like that.  A stack of cards with information on them,
+when you want to "put something on the top of the stack" which is called
+pushing something on the stack, with this visual I want to you to add
+a blank card on the stack and then write one value one thing on that
+card, an address or value that you need to save.  Every time you push
+something on the stack you continue to make this stack of cards taller.
+When it is time to recover that data that we stored on the stack we
+start to pop things off of the stack, read the value on the top card
+then remove and discard the top card.
+
+Why would we need such a thing?  Well there are times when you for
+example simply run out of spare registers, you have some complicated
+algorithm that requires all of the registers you have available, so
+much so that you need r4 the register that we are using to hold the
+return address.  If we lose that return address we cannot return
+to the code that called the function.  The stack provides simple, easy
+to allocate and free memory for temporary use.
+
+In this example I dont actually have a complicated algorithm, instead
+I have used r4 to show something on the output.  If we didnt use the
+stack the
+
+    lhz r4,#0xAB
+
+instruction changes the contents of r4 causing our return address to be
+lost then
+
+    b r4
+
+takes us off into the weeds instead of back to whomever called us.
+
+Before a line by line analysis, time for a break.  You may have noticed
+the lsa instruciton set does not contain a push nor pop instruction.
+For this instruction set these are what is known as pseudo instructions
+(other instruction sets might have an actual push and/or pop) you can
+type and think one thing in assembly language but the machine code
+created is the real instruction.
+
+If you look at the source code to the lsa-as assembler
+
+// push -----------------------------------------------------------
+        if(strncmp(&newline[ra],"push ",5)==0)
+        {
+            ...
+            rd=2; //stack pointer
+            ...
+            mem[curradd]=0x400C|(rd<<8)|(rs<<4);
+
+What that means is the instruction is 0x400C with some registers placed
+in there.  The 0x4000 part of it means load/store
+
+     0100 dddd ssss aaaa  load/store
+
+the C at the end means
+
+   1100 stw [--rd],rs
+
+So a push is really
+
+   stw [--r2],rs
+
+Which using C as pseudo code is
+
+ --r2; //put the blank card on the stack of cards
+ memory[r2] = rs; //write the value in rs on the top card on the stack.
+
+
+Likewise
+
+
+// pop -----------------------------------------------------------
+        if(strncmp(&newline[ra],"pop ",4)==0)
+        {
+            ...
+            rs=2; //stack pointer
+            ...
+            mem[curradd]=0x4001|(rd<<8)|(rs<<4);
+            ...
+
+
+     0100 dddd ssss aaaa  load/store
+0001 ldw rd,[rs++]
+
+pop is really
+
+ldw rd,[r2++]
+
+using C as pseudo code
+
+rd = memory[r2]; //read the value on the top card and save it in rd
+r2++; //remove the top card.
+
+Now some of you are thinking, why does subtracting mean add a card and
+adding means removing a card?  Well in the lsa instruction set and by
+force or convention most instruction sets have stacks that "grow down"
+meaning as you add things to the stack the address goes from a higher
+address to a lower address.
+
+If you think about it it makes perfect sense.  Your program begins at
+some address in memory and unless you take a branch the next instruction
+is at the next highest address. So your program takes some amount of memory
+starting at zero or some low numbered address in memory.  Then you have
+all the memory from just after the program to the highest numbered address
+in ram to share between data and stack.  When we use data as arrays and
+such we tend to use them in an increasing address fashion.  if we have
+an array of something we start at array element 0 and increase the index
+number.  When we think pointers we tend to start a pointer somewhere
+then as we move through the data we increment the pointer, using a
+higher numbered address each time, so data tends to grow upward using
+ever increasing addresses.  To maximize the use of that ram between
+the top of our program and the highest address in ram.  We already are
+used to the data increasing so data should start just above the
+program at the next address or close to it and the stack should start
+at the highest address and "grow downward".
+
+Think of a cave, from the floor to ceiling is our available ram, the
+floor is the top of our program.  A stalactite hanging from the
+ceiling is our stack.  The stalagmite below it is our data, so long
+as they dont grow together somewhere between the floor and ceiling
+we dont have any problems.  In a cave when a stalactite and stalagmite
+meet that is just fine, but when your stack and data meet that means
+one is overwriting the other and a crash can/will happen.
+
+So...
+
+myfun:
+    push r4        ;; save the return address on the top of the stack
+    lhz r4,#0xAB   ;; r4 is modified to be used for some other reason
+    stw [r7],r4    ;; show 0xAB00
+    pop r4         ;; the return address we left before is now popped
+                   ;; off the stack back into r4
+    b r4           ;; now that r4 has our return address we can safely return.
+
+
+
+
+
+
+
+---------------------------------------------------------------------
+Lesson xx:  The stack, part 2
+
+---- lessonxx ----
+    b lessonxx
+    b lessonxx
+lessonxx:
+
+    lhz r7,#0xFF
+    lpc r3,myfun_add
+    call r4,r3
+    llz r5,#0xCD
+    stw [r7],r5
+    halt
+
+myfun:
+    push r4
+    lpc r3,morefun_add
+    call r4,r3
+    pop r4
+    b r4
+
+morefun:
+    push r7
+    push r6
+    lhz r6,#0xFF
+    lhz r7,#0xAB
+    stw [r6],r7
+    pop r6
+    pop r7
+    b r4
+
+myfun_add: .word =myfun
+morefun_add: .word =morefun
+---- lessonxx ----
+
+You should see:
+
+show: 0xAB00
+show: 0x00CD
+
+What does this program do?
+
+So the prior lesson introduced the stack, and one reason for using the
+stack as temporary storage was because we had some algorithm so
+complicated we ran out of registers and needed r4.  At least that was
+the concept, we didnt actually have a complicated algorithm but we
+did in fact use r4 in the function and restore it before returning.
+
+This lesson introduces another reason, nested functions a function calls
+a function calls a function.  For reasons that may become obvious later
+we should declare a set of rules for each function to follow.  Lets say
+that r4 is always used as the return value when we call a function.
+Trust me please it is a good reason to have this rule, using the same
+register for every call.  The problem this creates is when myfun is
+called r4 contains the return address to get back to where myfun was
+called, but if myfun calls morefun, the call to morefun will change
+r4 to be the return address back from morefun.  If we dont save
+r4 in the myfun function, then r4 will get changed and we wont know
+how to return from myfun.
+
+This lesson also introduces the idea of another kind of rule that you
+will often see used.  What if I have a function that wants to use
+some registers to do something (wont almost ALL functions need to
+use registers?  if they do anything useful they will).  And in that
+function I may need to call other functions to help me do stuff.  I put
+something important in say register r6 but when I call the next function
+that function uses r6 for something else, when the function returns
+now my r6 register is changed and the code in this function is hosed.
+So another use case for the stack, is to temporarily preserve any
+registers that use in your function, so that you dont mess up whatever
+someone who called ou or who called them, etc, was using those registers
+for.  This very simplistic example the morefun function wants to use
+r6 and r7 for some reason.  r7 is being used by the code that called
+myfun and myfun called morefun, so if morefun messes up r7 that original
+caller might get messed up.
+
+
+    lhz r7,#0xFF      ;; r7 set here
+    lpc r3,myfun_add
+    call r4,r3
+    llz r5,#0xCD
+    stw [r7],r5       ;; r7 used here after the call to myfun
+                      ;; if myfun or anything it calls messes up r7
+                      ;; then this store wont work as desired.
+
+So declaring a general rule to preserve any register that you use, is
+not a bad idea.  There are often exceptions to these rules, of course
+r4 in this case we declared will used for return values and r3 we might
+declare can be modified by any function without being preserved, one
+case of that is if you want to use it to make calls.
+
+morefun:
+    push r7       ;;save r7 value on the top of the stack
+    push r6       ;;save r6 value on top of the formerly r7 value
+    lhz r6,#0xFF
+    lhz r7,#0xAB
+    stw [r6],r7
+    pop r6        ;;put r6 back the way we found it
+    pop r7        ;;put r7 back the way we found it
+    b r4
+
+The key here of course is that each function should have a balanced
+number of pushes and pops.  If you pop more things than you push or
+push more things than you pop at the end there may be problems with
+your program working.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ---------------------------------------------------------------------
 Lesson 22:  The Stack
 
