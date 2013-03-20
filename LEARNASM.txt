@@ -1339,7 +1339,7 @@ rd register dnaed with a one in the rs register is a zero.  Both the
 dna instruction and and instruction are used to zero bits in the rd
 register, the difference is you might save an instruction by using
 one operation instead of the other.  For example if we want to zero
-all but the lower three bits of a register we can do this:
+the lower three bits of a register we can do this:
 
     llz r2,#0x07
     dna r3,r2
@@ -1356,11 +1356,6 @@ or this
     not r2,r2
     and r3,r2
 
-if the number of bits you want to zero is more than eight and you
-need to use a load immediate to specify those bits, then use the dna
-instruction, if the number of bits you want to zero is less than
-eight and you need to use an immediate instruction then use the and
-instruction.
 
 There are quite a few different alu instructions in the lsa processor.
 The full list and their functions are shown here:
@@ -1630,7 +1625,7 @@ b   unconditional branch
 bz  branch if zero (z = 1)
 bnz branch if not zero (z = 0)
 bc  branch if carry (c = 1) (unsigned greater or equal)
-bnc branch of not carry (c = 0) (unsigned less)
+bnc branch if not carry (c = 0) (unsigned less)
 bn  branch if negative (n = 1)
 bnn branch if not negative (n = 0)
 bv  branch if signed overflow (v = 1)
@@ -3252,7 +3247,7 @@ this returns to the myfun call with ra = 0 at the printf point.
 
 we printf 0x0000
 
-the myfun call with ra = 1 is done we return
+the myfun call with ra = 0 is done we return
 
 this returns to main at the return(0) point.
 
